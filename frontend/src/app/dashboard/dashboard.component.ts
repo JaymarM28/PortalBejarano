@@ -273,9 +273,7 @@ export class DashboardComponent implements OnInit {
     this.loadEmployees();
     this.loadPayments();
     this.loadMarketExpenses();
-    if (this.authService.isSuperAdmin()) {
-      this.loadUsers();
-    }
+    this.loadUsers();
   }
 
   // Load data methods

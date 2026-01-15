@@ -1,23 +1,53 @@
+
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { MarketExpense } from './market-expense.entity';
 import { CreateMarketExpenseDto, UpdateMarketExpenseDto } from './dto/market-expense.dto';
+import { EmailService } from '../email/email.service';
+import { UsersService } from 'src/users/users.service';
+import { InternalServerErrorException } from '@nestjs/common';
+
 
 @Injectable()
 export class MarketExpensesService {
   constructor(
     @InjectRepository(MarketExpense)
     private marketExpenseRepository: Repository<MarketExpense>,
+    private emailService: EmailService,
+    private usersService: UsersService,    
   ) {}
 
-  async create(createDto: CreateMarketExpenseDto, userId: string): Promise<MarketExpense> {
+async create(createDto: CreateMarketExpenseDto, userId: string): Promise<MarketExpense> {
+
     const expense = this.marketExpenseRepository.create({
       ...createDto,
       createdById: userId,
     });
-    return this.marketExpenseRepository.save(expense);
+
+  try {
+    // Guardar el gasto
+    const savedExpense = await this.marketExpenseRepository.save(expense);
+
+    // ✅ CARGAR LAS RELACIONES después de guardar
+    const expenseWithRelations = await this.marketExpenseRepository.findOne({
+      where: { id: savedExpense.id }
+    });
+
+    if (!expenseWithRelations) {
+      throw new InternalServerErrorException('Error al cargar el gasto guardado');
+    }
+
+    // Enviar email con el gasto que tiene las relaciones cargadas
+    const allUsers = await this.usersService.findAll();
+    await this.emailService.sendExpenseNotification(expenseWithRelations, allUsers);
+
+    return expenseWithRelations;
+  } catch (error) {
+    console.error('Error en create market expense:', error);
+    throw new InternalServerErrorException('Error al crear el gasto de mercado');
   }
+}
 
   async findAll(): Promise<MarketExpense[]> {
     return this.marketExpenseRepository.find({

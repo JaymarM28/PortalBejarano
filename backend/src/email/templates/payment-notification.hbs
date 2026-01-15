@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nuevo Pago Registrado</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.6;
+      color: #2d3748;
+      background-color: #edf2f7;
+      margin: 0;
+      padding: 40px 20px;
+    }
+    .container {
+      max-width: 560px;
+      margin: 0 auto;
+      background-color: white;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+    }
+    .header {
+      background-color: #1a365d;
+      color: white;
+      padding: 40px 30px;
+      position: relative;
+    }
+    .header::after {
+      content: '';
+      position: absolute;
+      bottom: -20px;
+      left: 0;
+      right: 0;
+      height: 40px;
+      background: white;
+      border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+    }
+    .header-icon {
+      width: 60px;
+      height: 60px;
+      background-color: rgba(255,255,255,0.15);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 15px;
+      font-size: 28px;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 600;
+      text-align: center;
+    }
+    .header p {
+      margin: 8px 0 0;
+      opacity: 0.8;
+      font-size: 14px;
+      text-align: center;
+    }
+    .content {
+      padding: 30px 35px 35px;
+    }
+    .greeting {
+      font-size: 15px;
+      color: #4a5568;
+      margin-bottom: 25px;
+    }
+    .section-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #1a365d;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #e2e8f0;
+    }
+    .detail-section {
+      margin: 25px 0;
+    }
+    .detail-item {
+      display: flex;
+      align-items: flex-start;
+      padding: 14px 0;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .detail-item:last-child {
+      border-bottom: none;
+    }
+    .detail-icon {
+      width: 36px;
+      height: 36px;
+      background-color: #ebf4ff;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 15px;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    .detail-content {
+      flex: 1;
+    }
+    .detail-label {
+      font-size: 12px;
+      color: #718096;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 2px;
+    }
+    .detail-value {
+      font-size: 15px;
+      color: #2d3748;
+      font-weight: 500;
+    }
+    .money-section {
+      background-color: #f7fafc;
+      border-radius: 12px;
+      padding: 20px;
+      margin: 25px 0;
+    }
+    .money-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px dashed #e2e8f0;
+    }
+    .money-row:last-child {
+      border-bottom: none;
+    }
+    .money-label {
+      font-size: 14px;
+      color: #4a5568;
+    }
+    .money-value {
+      font-size: 15px;
+      font-weight: 600;
+      color: #2d3748;
+    }
+    .money-value.positive {
+      color: #059669;
+    }
+    .money-value.negative {
+      color: #dc2626;
+    }
+    .amount-card {
+      background: linear-gradient(135deg, #2c5282 0%, #1a365d 100%);
+      border-radius: 14px;
+      padding: 25px;
+      margin-top: 25px;
+      text-align: center;
+    }
+    .amount-label {
+      color: rgba(255,255,255,0.7);
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+    .amount-value {
+      color: white;
+      font-size: 32px;
+      font-weight: 700;
+    }
+    .notes-card {
+      background-color: #fffbeb;
+      border-radius: 12px;
+      padding: 18px;
+      margin-top: 25px;
+      display: flex;
+      align-items: flex-start;
+    }
+    .notes-icon {
+      width: 36px;
+      height: 36px;
+      background-color: #fef3c7;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 15px;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    .notes-content {
+      flex: 1;
+    }
+    .notes-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #92400e;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 5px;
+    }
+    .notes-text {
+      font-size: 14px;
+      color: #78350f;
+    }
+    .footer {
+      background-color: #f7fafc;
+      padding: 25px 35px;
+      text-align: center;
+    }
+    .footer p {
+      margin: 0;
+      color: #a0aec0;
+      font-size: 12px;
+    }
+    .footer p + p {
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Nuevo Pago Registrado</h1>
+      <p>Notificación del Sistema</p>
+    </div>
+    
+    <div class="content">
+      <p class="greeting">Se ha registrado un nuevo pago en el sistema:</p>
+      
+      <div class="detail-section">
+        <div class="section-title">📋 Información del Pago</div>
+        
+        <div class="detail-item">
+          <div class="detail-icon">👩</div>
+          <div class="detail-content">
+            <div class="detail-label">Empleada</div>
+            <div class="detail-value">{{employeeName}}</div>
+          </div>
+        </div>
+        
+        <div class="detail-item">
+          <div class="detail-icon">📅</div>
+          <div class="detail-content">
+            <div class="detail-label">Fecha de Pago</div>
+            <div class="detail-value">{{paymentDate}}</div>
+          </div>
+        </div>
+        
+        <div class="detail-item">
+          <div class="detail-icon">🏢</div>
+          <div class="detail-content">
+            <div class="detail-label">Empleador</div>
+            <div class="detail-value">{{employerName}}</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="money-section">
+        <div class="section-title">💵 Detalles del Monto</div>
+        
+        <div class="money-row">
+          <span class="money-label">Salario Base</span>
+          <span class="money-value">{{baseSalary}}</span>
+        </div>
+        
+        {{#if bonuses}}
+        <div class="money-row">
+          <span class="money-label">Bonificaciones</span>
+          <span class="money-value positive">{{bonuses}}</span>
+        </div>
+        {{/if}}
+        
+        {{#if deductions}}
+        <div class="money-row">
+          <span class="money-label">Deducciones</span>
+          <span class="money-value negative">{{deductions}}</span>
+        </div>
+        {{/if}}
+      </div>
+      
+      <div class="amount-card">
+        <div class="amount-label">Total Pagado</div>
+        <div class="amount-value">${{totalAmount}}</div>
+      </div>
+      
+      {{#if notes}}
+      <div class="notes-card">
+        <div class="notes-icon">📝</div>
+        <div class="notes-content">
+          <div class="notes-title">Notas</div>
+          <div class="notes-text">{{notes}}</div>
+        </div>
+      </div>
+      {{/if}}
+    </div>
+    
+    <div class="footer">
+      <p>Mensaje automático del Sistema de Gestión de Pagos</p>
+      <p>Por favor no responder a este correo</p>
+    </div>
+  </div>
+</body>
+</html>

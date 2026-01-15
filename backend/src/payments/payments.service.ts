@@ -5,6 +5,9 @@ import { Payment, PaymentStatus } from './payment.entity';
 import { CreatePaymentDto, SignPaymentDto, UpdatePaymentDto } from './dto/payment.dto';
 import { Employee } from '../employees/employee.entity';
 import PDFDocument from 'pdfkit';
+import { EmailService } from '../email/email.service';
+import { UsersService } from 'src/users/users.service';
+import { InternalServerErrorException } from '@nestjs/common';
 
 @Injectable()
 export class PaymentsService {
@@ -13,24 +16,26 @@ export class PaymentsService {
     private paymentRepository: Repository<Payment>,
     @InjectRepository(Employee)
     private employeeRepository: Repository<Employee>,
+    private emailService: EmailService,
+    private usersService: UsersService,
   ) {}
 
-  async create(createPaymentDto: CreatePaymentDto, employerId: string): Promise<Payment> {
-    // Obtener la empleada para conseguir su salario base
-    const employee = await this.employeeRepository.findOne({
-      where: { id: createPaymentDto.employeeId }
-    });
+async create(createPaymentDto: CreatePaymentDto, employerId: string): Promise<Payment> {
+  // Obtener la empleada para conseguir su salario base
+  const employee = await this.employeeRepository.findOne({
+    where: { id: createPaymentDto.employeeId }
+  });
 
-    if (!employee) {
-      throw new NotFoundException('Empleada no encontrada');
-    }
+  if (!employee) {
+    throw new NotFoundException('Empleada no encontrada');
+  }
 
-    // Si no se proporciona salario base, usar el de la empleada
-    const baseSalary = createPaymentDto.baseSalary ?? employee.baseSalary ?? 0;
+  // Si no se proporciona salario base, usar el de la empleada
+  const baseSalary = createPaymentDto.baseSalary ?? employee.baseSalary ?? 0;
 
-    const totalAmount = Number(baseSalary) + 
-                       Number(createPaymentDto.bonuses || 0) - 
-                       Number(createPaymentDto.deductions || 0);
+  const totalAmount = Number(baseSalary) + 
+                     Number(createPaymentDto.bonuses || 0) - 
+                     Number(createPaymentDto.deductions || 0);
 
     const payment = this.paymentRepository.create({
       ...createPaymentDto,
@@ -39,8 +44,30 @@ export class PaymentsService {
       totalAmount,
     });
 
-    return this.paymentRepository.save(payment);
+  try {
+    // Guardar el pago
+    const savedPayment = await this.paymentRepository.save(payment);
+
+    // ✅ CARGAR LAS RELACIONES después de guardar
+    const paymentWithRelations = await this.paymentRepository.findOne({
+      where: { id: savedPayment.id },
+      relations: ['employee', 'employer']
+    });
+
+    if (!paymentWithRelations) {
+      throw new InternalServerErrorException('Error al cargar el pago guardado');
+    }
+
+    // Enviar email con el pago que tiene las relaciones cargadas
+    const allUsers = await this.usersService.findAll();
+    await this.emailService.sendPaymentNotification(paymentWithRelations, allUsers);
+
+    return paymentWithRelations;
+  } catch (error) {
+    console.error('Error en create payment:', error);
+    throw new InternalServerErrorException('Error al crear el pago');
   }
+}
 
   async findAll(): Promise<Payment[]> {
     return this.paymentRepository.find({

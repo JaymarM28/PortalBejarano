@@ -5,6 +5,8 @@ import { PaymentsService } from './payments.service';
 import { PaymentsController } from './payments.controller';
 import { Payment } from './payment.entity';
 import { Employee } from '../employees/employee.entity';
+import { EmailModule } from '../email/email.module';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
@@ -12,6 +14,8 @@ import { Employee } from '../employees/employee.entity';
     MulterModule.register({
       dest: './uploads',
     }),
+    EmailModule,
+    UsersModule,
   ],
   controllers: [PaymentsController],
   providers: [PaymentsService],
