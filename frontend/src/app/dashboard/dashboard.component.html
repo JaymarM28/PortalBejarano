@@ -1,0 +1,606 @@
+<app-notifications></app-notifications>
+
+<div class="dashboard-container">
+  <!-- Header -->
+  <header class="dashboard-header">
+    <h1>💰 Sistema de Pagos</h1>
+    <div class="user-info">
+      <span>{{ currentUser?.fullName }}</span>
+      <span class="badge">{{ currentUser?.role === 'super_admin' ? 'Super Admin' : 'Admin' }}</span>
+      <button class="btn-change-password" (click)="openChangePasswordModal()" title="Cambiar contraseña">
+        🔐
+      </button>
+      <button class="btn-logout" (click)="logout()">Cerrar Sesión</button>
+    </div>
+  </header>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button 
+      class="tab" 
+      [class.active]="activeTab === 'payments'" 
+      (click)="activeTab = 'payments'">
+      📋 Pagos
+    </button>
+    <button 
+      class="tab" 
+      [class.active]="activeTab === 'employees'" 
+      (click)="activeTab = 'employees'">
+      👤 Empleadas
+    </button>
+    <button 
+      class="tab" 
+      [class.active]="activeTab === 'expenses'" 
+      (click)="activeTab = 'expenses'">
+      🛒 Gastos
+    </button>
+    <button 
+      *ngIf="authService.isSuperAdmin()"
+      class="tab" 
+      [class.active]="activeTab === 'users'" 
+      (click)="activeTab = 'users'">
+      👥 Usuarios
+    </button>
+  </div>
+
+  <!-- Content -->
+  <div class="content">
+    <!-- Payments Tab -->
+    <div *ngIf="activeTab === 'payments'" class="tab-content">
+      <div class="tab-header">
+        <h2>Historial de Pagos</h2>
+        <div class="header-actions">
+          <button class="btn-secondary" (click)="exportToExcel()" [disabled]="filteredPayments.length === 0">
+            📊 Exportar a Excel
+          </button>
+          <button class="btn-primary" (click)="openPaymentModal()">+ Nuevo Pago</button>
+        </div>
+      </div>
+
+      <!-- Filtros -->
+      <div class="filters-section">
+        <div class="filter-group">
+          <input 
+            type="text" 
+            [(ngModel)]="searchTerm" 
+            placeholder="🔍 Buscar por empleada o empleador..."
+            class="filter-input">
+        </div>
+        
+        <div class="filter-row">
+          <div class="filter-group">
+            <label>Empleada:</label>
+            <select [(ngModel)]="filterEmployee" class="filter-select">
+              <option value="">Todas las empleadas</option>
+              <option *ngFor="let emp of employees" [value]="emp.id">{{ emp.fullName }}</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label>Desde:</label>
+            <input type="date" [(ngModel)]="filterDateFrom" class="filter-input">
+          </div>
+
+          <div class="filter-group">
+            <label>Hasta:</label>
+            <input type="date" [(ngModel)]="filterDateTo" class="filter-input">
+          </div>
+
+          <button class="btn-link" (click)="clearFilters()">Limpiar filtros</button>
+        </div>
+
+        <div class="filter-results" *ngIf="filteredPayments.length !== payments.length">
+          Mostrando {{ filteredPayments.length }} de {{ payments.length }} pagos
+        </div>
+      </div>
+      
+      <app-skeleton [loading]="loadingPayments" [type]="'payment-table'"></app-skeleton>
+
+      <div class="table-container" *ngIf="!loadingPayments && filteredPayments.length > 0">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Empleada</th>
+              <th>Empleador</th>
+              <th>Monto Total</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let payment of filteredPayments">
+              <td>{{ payment.paymentDate | date: 'dd/MM/yyyy' }}</td>
+              <td>{{ payment.employee.fullName }}</td>
+              <td>{{ payment.employer.fullName }}</td>
+              <td>${{ payment.totalAmount | number: '1.2-2' }}</td>
+              <td>
+                <span class="status" [class.pending]="payment.status === 'pending'" 
+                      [class.signed]="payment.status === 'signed'"
+                      [class.completed]="payment.status === 'completed'">
+                  {{ payment.status === 'pending' ? 'Pendiente' : 
+                     payment.status === 'signed' ? 'Firmado' : 'Completado' }}
+                </span>
+              </td>
+              <td>
+                <button class="btn-icon" (click)="downloadPDF(payment.id)" title="Descargar PDF">
+                  📄
+                </button>
+                <button *ngIf="payment.status === 'pending'" 
+                        class="btn-icon" 
+                        (click)="openSignatureModal(payment)" 
+                        title="Firmar">
+                  ✍️
+                </button>
+                <button *ngIf="authService.isSuperAdmin()" 
+                        class="btn-icon" 
+                        (click)="openEditPaymentModal(payment)" 
+                        title="Editar">
+                  ✏️
+                </button>
+                <button *ngIf="authService.isSuperAdmin()" 
+                        class="btn-icon btn-danger" 
+                        (click)="deletePayment(payment.id)" 
+                        title="Eliminar">
+                  🗑️
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="empty-state" *ngIf="!loadingPayments && payments.length === 0">
+        <p>No hay pagos registrados todavía</p>
+      </div>
+    </div>
+
+    <!-- Employees Tab -->
+    <div *ngIf="activeTab === 'employees'" class="tab-content">
+      <div class="tab-header">
+        <h2>Empleadas</h2>
+        <button class="btn-primary" (click)="openEmployeeModal()">+ Nueva Empleada</button>
+      </div>
+
+      <app-skeleton [loading]="loadingEmployees" [type]="'employee-card'"></app-skeleton>
+
+      <div class="cards-grid" *ngIf="!loadingEmployees">
+        <div *ngFor="let employee of employees" class="card">
+          <div class="card-header">
+            <h3>{{ employee.fullName }}</h3>
+            <span class="badge" [class.inactive]="!employee.isActive">
+              {{ employee.isActive ? 'Activa' : 'Inactiva' }}
+            </span>
+          </div>
+          <div class="card-body">
+            <p><strong>Documento:</strong> {{ employee.documentId }}</p>
+            <p *ngIf="employee.phone"><strong>Teléfono:</strong> {{ employee.phone }}</p>
+            <p *ngIf="employee.position"><strong>Cargo:</strong> {{ employee.position }}</p>
+            <p><strong>Salario Base:</strong> ${{ employee.baseSalary | number: '1.2-2' }}</p>
+          </div>
+          <div class="card-actions">
+            <button class="btn-sm" (click)="openEmployeeModal(employee)">Editar</button>
+            <button class="btn-sm btn-danger" (click)="deleteEmployee(employee.id)">Eliminar</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="empty-state" *ngIf="!loadingEmployees && employees.length === 0">
+        <p>No hay empleadas registradas todavía</p>
+      </div>
+    </div>
+
+    <!-- Market Expenses Tab -->
+    <div *ngIf="activeTab === 'expenses'" class="tab-content">
+      <div class="tab-header">
+        <h2>Gastos de Mercado</h2>
+        <div class="header-actions">
+          <button class="btn-secondary" (click)="exportMarketExpensesToExcel()" [disabled]="filteredMarketExpenses.length === 0">
+            📊 Exportar a Excel
+          </button>
+          <button class="btn-primary" (click)="openMarketExpenseModal()">+ Nuevo Gasto</button>
+        </div>
+      </div>
+
+      <!-- Estadísticas del Mes -->
+      <div class="stats-section" *ngIf="monthStats">
+        <h3>📊 Estadísticas del Mes</h3>
+        <div class="month-selector">
+          <label>Mes:</label>
+          <select [(ngModel)]="selectedMonth" (change)="onMonthYearChange()" class="filter-select">
+            <option [value]="1">Enero</option>
+            <option [value]="2">Febrero</option>
+            <option [value]="3">Marzo</option>
+            <option [value]="4">Abril</option>
+            <option [value]="5">Mayo</option>
+            <option [value]="6">Junio</option>
+            <option [value]="7">Julio</option>
+            <option [value]="8">Agosto</option>
+            <option [value]="9">Septiembre</option>
+            <option [value]="10">Octubre</option>
+            <option [value]="11">Noviembre</option>
+            <option [value]="12">Diciembre</option>
+          </select>
+          <label>Año:</label>
+          <input type="number" [(ngModel)]="selectedYear" (change)="onMonthYearChange()" class="filter-input" style="width: 100px;">
+        </div>
+        
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Total del Mes</div>
+            <div class="stat-value">${{ monthStats.total | number: '1.2-2' }}</div>
+            <div class="stat-subtitle">{{ monthStats.count }} compras</div>
+          </div>
+          
+          <div class="stat-card" *ngIf="monthStats.byResponsible.length > 0">
+            <div class="stat-label">Por Responsable</div>
+            <div class="stat-list">
+              <div *ngFor="let item of monthStats.byResponsible" class="stat-item">
+                <span>{{ item.name }}</span>
+                <span class="stat-amount">${{ item.total | number: '1.2-2' }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="stat-card" *ngIf="monthStats.byPlace.length > 0">
+            <div class="stat-label">Por Lugar</div>
+            <div class="stat-list">
+              <div *ngFor="let item of monthStats.byPlace" class="stat-item">
+                <span>{{ item.place }}</span>
+                <span class="stat-amount">${{ item.total | number: '1.2-2' }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filtros -->
+      <div class="filters-section">
+        <div class="filter-group">
+          <input 
+            type="text" 
+            [(ngModel)]="expenseSearchTerm" 
+            placeholder="🔍 Buscar por lugar o responsable..."
+            class="filter-input">
+        </div>
+        
+        <div class="filter-row">
+          <div class="filter-group">
+            <label>Responsable:</label>
+            <select [(ngModel)]="expenseFilterResponsible" class="filter-select">
+              <option value="">Todos</option>
+              <option *ngFor="let user of users" [value]="user.id">{{ user.fullName }}</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label>Lugar:</label>
+            <input type="text" [(ngModel)]="expenseFilterPlace" placeholder="Ej: Éxito, Carulla..." class="filter-input">
+          </div>
+
+          <div class="filter-group">
+            <label>Desde:</label>
+            <input type="date" [(ngModel)]="expenseFilterDateFrom" class="filter-input">
+          </div>
+
+          <div class="filter-group">
+            <label>Hasta:</label>
+            <input type="date" [(ngModel)]="expenseFilterDateTo" class="filter-input">
+          </div>
+
+          <button class="btn-link" (click)="clearExpenseFilters()">Limpiar filtros</button>
+        </div>
+
+        <div class="filter-results" *ngIf="filteredMarketExpenses.length !== marketExpenses.length">
+          Mostrando {{ filteredMarketExpenses.length }} de {{ marketExpenses.length }} gastos
+        </div>
+      </div>
+
+      <app-skeleton [loading]="loadingMarketExpenses" [type]="'payment-table'"></app-skeleton>
+
+      <!-- Tabla de Gastos -->
+      <div class="table-container" *ngIf="!loadingMarketExpenses && filteredMarketExpenses.length > 0">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Lugar</th>
+              <th>Responsable</th>
+              <th>Categoría</th>
+              <th>Monto</th>
+              <th>Notas</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let expense of filteredMarketExpenses">
+              <td>{{ expense.date | date: 'dd/MM/yyyy' }}</td>
+              <td>{{ expense.place }}</td>
+              <td>{{ expense.responsible.fullName }}</td>
+              <td>
+                <span class="badge">{{ expense.category || 'N/A' }}</span>
+              </td>
+              <td>${{ expense.amount | number: '1.2-2' }}</td>
+              <td>
+                <span class="expense-notes">{{ expense.notes || '-' }}</span>
+              </td>
+              <td>
+                <button class="btn-icon" (click)="openMarketExpenseModal(expense)" title="Editar">
+                  ✏️
+                </button>
+                <button class="btn-icon btn-danger" (click)="deleteMarketExpense(expense.id)" title="Eliminar">
+                  🗑️
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="empty-state" *ngIf="!loadingMarketExpenses && filteredMarketExpenses.length === 0">
+        <p>No hay gastos registrados todavía</p>
+      </div>
+    </div>
+
+    <!-- Users Tab -->
+    <div *ngIf="activeTab === 'users' && authService.isSuperAdmin()" class="tab-content">
+      <div class="tab-header">
+        <h2>Usuarios del Sistema</h2>
+        <button class="btn-primary" (click)="openUserModal()">+ Nuevo Usuario</button>
+      </div>
+
+      <app-skeleton [loading]="loadingUsers" [type]="'user-table'"></app-skeleton>
+
+      <div class="table-container" *ngIf="!loadingUsers && users.length > 0">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Email</th>
+              <th>Rol</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let user of users">
+              <td>{{ user.fullName }}</td>
+              <td>{{ user.email }}</td>
+              <td>
+                <span class="badge">
+                  {{ user.role === 'super_admin' ? 'Super Admin' : 'Admin' }}
+                </span>
+              </td>
+              <td>
+                <span class="status" [class.completed]="user.isActive" [class.pending]="!user.isActive">
+                  {{ user.isActive ? 'Activo' : 'Inactivo' }}
+                </span>
+              </td>
+              <td>
+                <button class="btn-icon" (click)="openUserModal(user)" title="Editar">✏️</button>
+                <button class="btn-icon" (click)="deleteUser(user.id)" title="Eliminar">🗑️</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="empty-state" *ngIf="!loadingUsers && users.length === 0">
+        <p>No hay usuarios registrados todavía</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Employee Modal -->
+  <div class="modal" *ngIf="showEmployeeModal" (click)="showEmployeeModal = false">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>{{ editingEmployee ? 'Editar' : 'Nueva' }} Empleada</h3>
+        <button class="btn-close" (click)="showEmployeeModal = false">×</button>
+      </div>
+      <form [formGroup]="employeeForm" (ngSubmit)="saveEmployee()">
+        <div class="form-group">
+          <label>Nombre Completo *</label>
+          <input type="text" formControlName="fullName" class="form-control">
+        </div>
+        <div class="form-group">
+          <label>Documento de Identidad *</label>
+          <input type="text" formControlName="documentId" class="form-control">
+        </div>
+        <div class="form-group">
+          <label>Teléfono</label>
+          <input type="text" formControlName="phone" class="form-control">
+        </div>
+        <div class="form-group">
+          <label>Dirección</label>
+          <input type="text" formControlName="address" class="form-control">
+        </div>
+        <div class="form-group">
+          <label>Cargo</label>
+          <input type="text" formControlName="position" class="form-control">
+        </div>
+        <div class="form-group">
+          <label>Salario Base</label>
+          <input type="number" formControlName="baseSalary" class="form-control" min="0" step="0.01" placeholder="0.00">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" (click)="showEmployeeModal = false">Cancelar</button>
+          <button type="submit" class="btn-primary" [disabled]="employeeForm.invalid || loading">
+            {{ loading ? 'Guardando...' : 'Guardar' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Payment Modal -->
+  <div class="modal" *ngIf="showPaymentModal" (click)="showPaymentModal = false; editingPayment = null">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>{{ editingPayment ? 'Editar' : 'Registrar Nuevo' }} Pago</h3>
+        <button class="btn-close" (click)="showPaymentModal = false; editingPayment = null">×</button>
+      </div>
+      <form [formGroup]="paymentForm" (ngSubmit)="savePayment()">
+        <div class="form-group">
+          <label>Empleada *</label>
+          <select formControlName="employeeId" class="form-control" (change)="onEmployeeChange($any($event.target).value)">
+            <option value="">Seleccionar empleada</option>
+            <option *ngFor="let emp of employees" [value]="emp.id">{{ emp.fullName }}</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Fecha de Pago *</label>
+          <input type="date" formControlName="paymentDate" class="form-control">
+        </div>
+        <div class="form-group">
+          <label>Salario Base (de la empleada)</label>
+          <input type="number" formControlName="baseSalary" class="form-control readonly-input" min="0" step="0.01" readonly>
+          <small class="form-hint">Este valor se trae automáticamente del perfil de la empleada</small>
+        </div>
+        <div class="form-group">
+          <label>Bonificaciones</label>
+          <input type="number" formControlName="bonuses" class="form-control" min="0" step="0.01">
+        </div>
+        <div class="form-group">
+          <label>Deducciones</label>
+          <input type="number" formControlName="deductions" class="form-control" min="0" step="0.01">
+        </div>
+        <div class="form-group">
+          <label>Notas</label>
+          <textarea formControlName="notes" class="form-control" rows="3"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" (click)="showPaymentModal = false">Cancelar</button>
+          <button type="submit" class="btn-primary" [disabled]="paymentForm.invalid || loading">
+            {{ loading ? 'Creando...' : 'Crear Pago' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- User Modal -->
+  <div class="modal" *ngIf="showUserModal" (click)="showUserModal = false">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>{{ editingUser ? 'Editar' : 'Nuevo' }} Usuario</h3>
+        <button class="btn-close" (click)="showUserModal = false">×</button>
+      </div>
+      <form [formGroup]="userForm" (ngSubmit)="saveUser()">
+        <div class="form-group">
+          <label>Nombre Completo *</label>
+          <input type="text" formControlName="fullName" class="form-control">
+        </div>
+        <div class="form-group">
+          <label>Email *</label>
+          <input type="email" formControlName="email" class="form-control">
+        </div>
+        <div class="form-group">
+          <label>Contraseña {{ editingUser ? '(dejar en blanco para no cambiar)' : '*' }}</label>
+          <input type="password" formControlName="password" class="form-control">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" (click)="showUserModal = false">Cancelar</button>
+          <button type="submit" class="btn-primary" [disabled]="userForm.invalid || loading">
+            {{ loading ? 'Guardando...' : 'Guardar' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Signature Modal -->
+  <div class="modal" *ngIf="showSignatureModal" (click)="closeSignatureModal()">
+    <div class="modal-content modal-signature" (click)="$event.stopPropagation()">
+      <app-signature-pad 
+        (signatureSaved)="saveSignature($event)"
+        (cancelled)="closeSignatureModal()">
+      </app-signature-pad>
+    </div>
+  </div>
+
+  <!-- Change Password Modal -->
+  <div class="modal" *ngIf="showChangePasswordModal" (click)="closeChangePasswordModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Cambiar Contraseña</h3>
+        <button class="btn-close" (click)="closeChangePasswordModal()">×</button>
+      </div>
+      <form [formGroup]="changePasswordForm" (ngSubmit)="changePassword()">
+        <div class="form-group">
+          <label>Contraseña Actual *</label>
+          <input type="password" formControlName="currentPassword" class="form-control" placeholder="Ingrese su contraseña actual">
+        </div>
+        <div class="form-group">
+          <label>Nueva Contraseña *</label>
+          <input type="password" formControlName="newPassword" class="form-control" placeholder="Mínimo 6 caracteres">
+          <small class="form-hint" *ngIf="changePasswordForm.get('newPassword')?.invalid && changePasswordForm.get('newPassword')?.touched">
+            La contraseña debe tener al menos 6 caracteres
+          </small>
+        </div>
+        <div class="form-group">
+          <label>Confirmar Nueva Contraseña *</label>
+          <input type="password" formControlName="confirmPassword" class="form-control" placeholder="Repita la nueva contraseña">
+          <small class="form-hint error" *ngIf="changePasswordForm.get('confirmPassword')?.hasError('mismatch') && changePasswordForm.get('confirmPassword')?.touched">
+            Las contraseñas no coinciden
+          </small>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" (click)="closeChangePasswordModal()">Cancelar</button>
+          <button type="submit" class="btn-primary" [disabled]="changePasswordForm.invalid || loading">
+            {{ loading ? 'Guardando...' : 'Cambiar Contraseña' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Market Expense Modal -->
+  <div class="modal" *ngIf="showMarketExpenseModal" (click)="closeMarketExpenseModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>{{ editingMarketExpense ? 'Editar' : 'Nuevo' }} Gasto de Mercado</h3>
+        <button class="btn-close" (click)="closeMarketExpenseModal()">×</button>
+      </div>
+      <form [formGroup]="marketExpenseForm" (ngSubmit)="saveMarketExpense()">
+        <div class="form-group">
+          <label>Fecha *</label>
+          <input type="date" formControlName="date" class="form-control">
+        </div>
+        <div class="form-group">
+          <label>Lugar *</label>
+          <input type="text" formControlName="place" class="form-control" placeholder="Ej: Éxito, Carulla, D1...">
+        </div>
+        <div class="form-group">
+          <label>Responsable * (Quién hizo la compra)</label>
+          <select formControlName="responsibleId" class="form-control">
+            <option value="">Seleccionar responsable</option>
+            <option *ngFor="let user of users" [value]="user.id">{{ user.fullName }}</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Categoría</label>
+          <select formControlName="category" class="form-control">
+            <option value="mercado">Mercado</option>
+            <option value="servicios">Servicios</option>
+            <option value="otros">Otros</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Monto * ($)</label>
+          <input type="number" formControlName="amount" class="form-control" min="0" step="0.01" placeholder="0.00">
+        </div>
+        <div class="form-group">
+          <label>Notas (Opcional)</label>
+          <textarea formControlName="notes" class="form-control" rows="3" placeholder="Detalles adicionales..."></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" (click)="closeMarketExpenseModal()">Cancelar</button>
+          <button type="submit" class="btn-primary" [disabled]="marketExpenseForm.invalid || loading">
+            {{ loading ? 'Guardando...' : 'Guardar' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
