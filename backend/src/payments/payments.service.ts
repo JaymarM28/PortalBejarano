@@ -128,7 +128,7 @@ async create(createPaymentDto: CreatePaymentDto, employerId: string): Promise<Pa
     return this.paymentRepository.save(payment);
   }
 
-  async generatePDF(id: string): Promise<Buffer> {
+async generatePDF(id: string): Promise<Buffer> {
     const payment = await this.findOne(id);
 
     return new Promise((resolve, reject) => {
@@ -146,26 +146,25 @@ async create(createPaymentDto: CreatePaymentDto, employerId: string): Promise<Pa
       doc.moveDown(2);
 
       // Información del empleador
-      doc.fontSize(14).text('EMPLEADOR:', { underline: true });
+      doc.fontSize(14).text('RESPONSABLE:', { underline: true });
       doc.moveDown(0.5);
       doc.fontSize(11).text(`Nombre: ${payment.employer.fullName}`);
       doc.text(`Email: ${payment.employer.email}`);
       doc.moveDown(1.5);
 
       // Información de la empleada
-      doc.fontSize(14).text('EMPLEADA:', { underline: true });
+      doc.fontSize(14).text('TRABAJADOR:', { underline: true });
       doc.moveDown(0.5);
       doc.fontSize(11).text(`Nombre: ${payment.employee.fullName}`);
       doc.text(`Documento: ${payment.employee.documentId}`);
-      if (payment.employee.position) {
-        doc.text(`Cargo: ${payment.employee.position}`);
-      }
       doc.moveDown(1.5);
 
       // Detalles del pago
       doc.fontSize(14).text('DETALLES DEL PAGO:', { underline: true });
       doc.moveDown(0.5);
-      doc.fontSize(11).text(`Fecha de pago: ${new Date(payment.paymentDate).toLocaleDateString('es-ES')}`);
+      doc.fontSize(11).text(
+        `Fecha de pago: ${new Date(payment.paymentDate).toLocaleDateString('es-ES')}`
+      );
       doc.moveDown(1);
 
       // Tabla de conceptos
@@ -211,33 +210,61 @@ async create(createPaymentDto: CreatePaymentDto, employerId: string): Promise<Pa
       if (payment.digitalSignature) {
         try {
           // Remover el prefijo data:image/png;base64, si existe
-          const base64Data = payment.digitalSignature.replace(/^data:image\/\w+;base64,/, '');
+          const base64Data = payment.digitalSignature.replace(
+            /^data:image\/\w+;base64,/,
+            ''
+          );
           const imageBuffer = Buffer.from(base64Data, 'base64');
-          
+
+          // Texto (puede ir a la izquierda o a la derecha, tú eliges)
           doc.fontSize(11).text('Firma:', { align: 'left' });
           doc.moveDown(0.5);
-          
-          // Insertar imagen de firma (sin align porque no acepta 'left')
-          doc.image(imageBuffer, 50, doc.y, {
-            fit: [200, 80]
+
+          // Imagen alineada a la derecha (PDFKit: se hace calculando X)
+          const fitWidth = 200;
+          const fitHeight = 80;
+
+          const xRight = doc.page.width - doc.page.margins.right - fitWidth;
+          const y = doc.y;
+
+          doc.image(imageBuffer, xRight, y, {
+            fit: [fitWidth, fitHeight],
           });
-          
-          doc.moveDown(6); // Espacio después de la imagen
-          doc.fontSize(9).text(`Firmado digitalmente el: ${new Date(payment.signedAt).toLocaleDateString('es-ES')} a las ${new Date(payment.signedAt).toLocaleTimeString('es-ES')}`, { align: 'left' });
+
+          // Avanza el cursor debajo de la imagen (mejor que moveDown "a ojo")
+          doc.y = y + fitHeight;
+          doc.moveDown(1);
+
+          doc.fontSize(9).text(
+            `Firmado digitalmente el: ${new Date(payment.signedAt).toLocaleDateString(
+              'es-ES'
+            )} a las ${new Date(payment.signedAt).toLocaleTimeString('es-ES')}`,
+            { align: 'left' }
+          );
         } catch (error) {
           console.error('Error al insertar firma:', error);
           doc.fontSize(11).text('Firmado digitalmente', { align: 'center' });
-          doc.fontSize(9).text(`Fecha de firma: ${new Date(payment.signedAt).toLocaleDateString('es-ES')}`, { align: 'center' });
+          doc.fontSize(9).text(
+            `Fecha de firma: ${new Date(payment.signedAt).toLocaleDateString('es-ES')}`,
+            { align: 'center' }
+          );
         }
       } else {
         doc.moveDown(3);
         doc.fontSize(11).text('_________________________', { align: 'center' });
         doc.moveDown(0.5);
-        doc.text('Firma de la empleada', { align: 'center' });
+        doc.text('Firma', { align: 'center' });
       }
 
       doc.moveDown(2);
-      doc.fontSize(8).text(`Generado el: ${new Date().toLocaleDateString('es-ES')} a las ${new Date().toLocaleTimeString('es-ES')}`, { align: 'center' });
+      doc
+        .fontSize(8)
+        .text(
+          `Generado el: ${new Date().toLocaleDateString('es-ES')} a las ${new Date().toLocaleTimeString(
+            'es-ES'
+          )}`,
+          { align: 'center' }
+        );
 
       doc.end();
     });
