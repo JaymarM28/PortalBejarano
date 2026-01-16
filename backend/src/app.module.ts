@@ -28,6 +28,9 @@ import { LoggingInterceptor } from './common/logging.interceptor';
       username: process.env.DB_USERNAME || 'postgres',
       password: process.env.DB_PASSWORD || 'postgres',
       database: process.env.DB_NAME || 'payroll_db',
+      ssl: {
+        rejectUnauthorized: false,
+      },      
       entities: [User, Employee, Payment, Category, MarketExpense],
       synchronize: true,
       logging: false,
