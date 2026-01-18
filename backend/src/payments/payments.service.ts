@@ -54,7 +54,7 @@ export class PaymentsService {
       }
 
       const allUsers = await this.usersService.findAll(houseId);
-      await this.emailService.sendPaymentNotification(paymentWithRelations, allUsers);
+      await this.emailService.sendPaymentNotificationAsync(paymentWithRelations, allUsers);
 
       return paymentWithRelations;
     } catch (error) {

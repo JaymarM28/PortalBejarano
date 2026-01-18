@@ -10,13 +10,17 @@ export class EmailService {
 
   constructor(private mailerService: MailerService) {}
 
+  // ==========================================
+  // MÉTODOS SÍNCRONOS (ORIGINALES)
+  // ==========================================
+
   async sendPaymentNotification(payment: Payment, users: User[]): Promise<void> {
     try {
       const emailPromises = users.map((user) =>
         this.mailerService.sendMail({
           to: user.email,
           subject: `Pago Registrado - ${payment.employee.fullName}`,
-          template: 'payment-notification', // ✅ sin "./"
+          template: 'payment-notification',
           context: {
             userName: user.fullName,
             employeeName: payment.employee.fullName,
@@ -37,6 +41,7 @@ export class EmailService {
       this.logger.log(`✅ Emails de pago enviados a ${users.length} usuarios`);
     } catch (error) {
       this.logger.error('❌ Error enviando emails de pago:', error);
+      throw error; // Lanza el error para que el llamador sepa que falló
     }
   }
 
@@ -46,7 +51,7 @@ export class EmailService {
         this.mailerService.sendMail({
           to: user.email,
           subject: `Gasto Registrado - ${expense.place}`,
-          template: 'expense-notification', // ✅ sin "./"
+          template: 'expense-notification',
           context: {
             userName: user.fullName,
             responsibleName: expense.responsible.fullName,
@@ -65,8 +70,49 @@ export class EmailService {
       this.logger.log(`✅ Emails de gasto enviados a ${users.length} usuarios`);
     } catch (error) {
       this.logger.error('❌ Error enviando emails de gasto:', error);
+      throw error; // Lanza el error para que el llamador sepa que falló
     }
   }
+
+  // ==========================================
+  // MÉTODOS ASYNC (NO BLOQUEANTES) - NUEVOS
+  // ==========================================
+
+  /**
+   * Envía notificación de pago de forma asíncrona sin bloquear la respuesta HTTP.
+   * Ideal para usar en producción donde el timeout es limitado.
+   */
+  sendPaymentNotificationAsync(payment: Payment, users: User[]): void {
+    setImmediate(async () => {
+      try {
+        await this.sendPaymentNotification(payment, users);
+        this.logger.log(`📧 Email de pago procesado en background para ${users.length} usuarios`);
+      } catch (error) {
+        this.logger.error('❌ Error en envío async de email de pago:', error);
+        // No lanzar el error para no afectar la ejecución principal
+      }
+    });
+  }
+
+  /**
+   * Envía notificación de gasto de forma asíncrona sin bloquear la respuesta HTTP.
+   * Ideal para usar en producción donde el timeout es limitado.
+   */
+  sendExpenseNotificationAsync(expense: MarketExpense, users: User[]): void {
+    setImmediate(async () => {
+      try {
+        await this.sendExpenseNotification(expense, users);
+        this.logger.log(`📧 Email de gasto procesado en background para ${users.length} usuarios`);
+      } catch (error) {
+        this.logger.error('❌ Error en envío async de email de gasto:', error);
+        // No lanzar el error para no afectar la ejecución principal
+      }
+    });
+  }
+
+  // ==========================================
+  // MÉTODOS HELPER (SIN CAMBIOS)
+  // ==========================================
 
   private formatDate(date: Date): string {
     return new Date(date).toLocaleDateString('es-CO', {

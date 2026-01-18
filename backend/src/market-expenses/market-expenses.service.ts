@@ -34,7 +34,7 @@ export class MarketExpensesService {
       }
 
       const allUsers = await this.usersService.findAll(houseId);
-      await this.emailService.sendExpenseNotification(expenseWithRelations, allUsers);
+      await this.emailService.sendExpenseNotificationAsync(expenseWithRelations, allUsers);
 
       return expenseWithRelations;
     } catch (error) {
