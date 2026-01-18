@@ -9,12 +9,14 @@ import { CommonModule } from '@angular/common';
     <div class="signature-container">
       <div class="signature-header">
         <h4>Firmar Documento</h4>
-        <p class="signature-hint">Use su dedo o mouse para firmar en el área blanca</p>
+        <p class="signature-hint">
+          Use su dedo o mouse para firmar en el área blanca
+        </p>
       </div>
-      
+
       <div class="canvas-wrapper">
-        <canvas 
-          #canvas 
+        <canvas
+          #canvas
           (mousedown)="startDrawing($event)"
           (mousemove)="draw($event)"
           (mouseup)="stopDrawing()"
@@ -26,14 +28,28 @@ import { CommonModule } from '@angular/common';
       </div>
 
       <div class="signature-actions">
-        <button type="button" class="btn-secondary" (click)="clear()">
+        <button
+          type="button"
+          class="btn-secondary"
+          (click)="clear()"
+          [disabled]="isSaving">
           🗑️ Limpiar
         </button>
-        <button type="button" class="btn-secondary" (click)="cancel()">
+
+        <button
+          type="button"
+          class="btn-secondary"
+          (click)="cancel()"
+          [disabled]="isSaving">
           Cancelar
         </button>
-        <button type="button" class="btn-primary" (click)="save()" [disabled]="isEmpty">
-          ✓ Guardar Firma
+
+        <button
+          type="button"
+          class="btn-primary"
+          (click)="save()"
+          [disabled]="isEmpty || isSaving">
+          {{ isSaving ? 'Guardando...' : '✓ Guardar Firma' }}
         </button>
       </div>
     </div>
@@ -78,7 +94,8 @@ import { CommonModule } from '@angular/common';
       justify-content: flex-end;
     }
 
-    .btn-primary, .btn-secondary {
+    .btn-primary,
+    .btn-secondary {
       padding: 10px 20px;
       border-radius: 6px;
       border: none;
@@ -107,46 +124,53 @@ import { CommonModule } from '@angular/common';
       color: #374151;
     }
 
-    .btn-secondary:hover {
+    .btn-secondary:hover:not(:disabled) {
       background: #e5e7eb;
+    }
+
+    .btn-secondary:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
     }
   `]
 })
 export class SignaturePadComponent implements OnInit {
-  @ViewChild('canvas', { static: true }) canvasRef!: ElementRef<HTMLCanvasElement>;
+
+  @ViewChild('canvas', { static: true })
+  canvasRef!: ElementRef<HTMLCanvasElement>;
+
   @Output() signatureSaved = new EventEmitter<string>();
   @Output() cancelled = new EventEmitter<void>();
 
   private ctx!: CanvasRenderingContext2D;
   private isDrawing = false;
+
   isEmpty = true;
+  isSaving = false;
 
   ngOnInit() {
     const canvas = this.canvasRef.nativeElement;
     this.ctx = canvas.getContext('2d')!;
-    
-    // Set canvas size
+
     const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * 2; // Retina display
+    canvas.width = rect.width * 2; // Retina
     canvas.height = 400;
-    
-    // Scale for retina
+
     this.ctx.scale(2, 2);
-    
-    // Configure drawing
+
     this.ctx.strokeStyle = '#000000';
     this.ctx.lineWidth = 2;
     this.ctx.lineCap = 'round';
     this.ctx.lineJoin = 'round';
   }
 
-  private getCoordinates(event: MouseEvent | TouchEvent): { x: number, y: number } {
+  private getCoordinates(event: MouseEvent | TouchEvent): { x: number; y: number } {
     const canvas = this.canvasRef.nativeElement;
     const rect = canvas.getBoundingClientRect();
-    
+
     let clientX: number;
     let clientY: number;
-    
+
     if (event instanceof MouseEvent) {
       clientX = event.clientX;
       clientY = event.clientY;
@@ -154,27 +178,31 @@ export class SignaturePadComponent implements OnInit {
       clientX = event.touches[0].clientX;
       clientY = event.touches[0].clientY;
     }
-    
+
     return {
-      x: (clientX - rect.left),
-      y: (clientY - rect.top)
+      x: clientX - rect.left,
+      y: clientY - rect.top
     };
   }
 
   startDrawing(event: MouseEvent | TouchEvent) {
+    if (this.isSaving) return;
+
     event.preventDefault();
     this.isDrawing = true;
     this.isEmpty = false;
-    const coords = this.getCoordinates(event);
+
+    const { x, y } = this.getCoordinates(event);
     this.ctx.beginPath();
-    this.ctx.moveTo(coords.x, coords.y);
+    this.ctx.moveTo(x, y);
   }
 
   draw(event: MouseEvent | TouchEvent) {
-    if (!this.isDrawing) return;
+    if (!this.isDrawing || this.isSaving) return;
+
     event.preventDefault();
-    const coords = this.getCoordinates(event);
-    this.ctx.lineTo(coords.x, coords.y);
+    const { x, y } = this.getCoordinates(event);
+    this.ctx.lineTo(x, y);
     this.ctx.stroke();
   }
 
@@ -183,19 +211,30 @@ export class SignaturePadComponent implements OnInit {
   }
 
   clear() {
+    if (this.isSaving) return;
+
     const canvas = this.canvasRef.nativeElement;
     this.ctx.clearRect(0, 0, canvas.width, canvas.height);
     this.isEmpty = true;
   }
 
   save() {
-    if (this.isEmpty) return;
+    if (this.isEmpty || this.isSaving) return;
+
+    this.isSaving = true;
+
     const canvas = this.canvasRef.nativeElement;
     const signature = canvas.toDataURL('image/png');
+
+    // Emitimos la firma
     this.signatureSaved.emit(signature);
+
+    // Volvemos al estado normal
+    this.isSaving = false;
   }
 
   cancel() {
+    if (this.isSaving) return;
     this.cancelled.emit();
   }
 }

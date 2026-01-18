@@ -1,6 +1,7 @@
 import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { Employee } from '../employees/employee.entity';
 import { User } from '../users/user.entity';
+import { House } from '../houses/house.entity';
 
 export enum PaymentStatus {
   PENDING = 'pending',
@@ -66,4 +67,11 @@ export class Payment {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+   @ManyToOne(() => House, house => house.employees)
+   @JoinColumn({ name: 'houseId' })
+   house: House;
+ 
+   @Column({ nullable: true })
+   houseId: string;   
 }

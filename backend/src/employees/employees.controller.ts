@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request } from '@nestjs/common';
 import { EmployeesService } from './employees.service';
 import { CreateEmployeeDto, UpdateEmployeeDto } from './dto/employee.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -9,27 +9,27 @@ export class EmployeesController {
   constructor(private readonly employeesService: EmployeesService) {}
 
   @Post()
-  create(@Body() createEmployeeDto: CreateEmployeeDto) {
-    return this.employeesService.create(createEmployeeDto);
+  create(@Body() dto: CreateEmployeeDto, @Request() req) {
+    return this.employeesService.create(dto, req.user.houseId);
   }
 
   @Get()
-  findAll() {
-    return this.employeesService.findAll();
+  findAll(@Request() req) {
+    return this.employeesService.findAll(req.user.houseId);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.employeesService.findOne(id);
+  findOne(@Param('id') id: string, @Request() req) {
+    return this.employeesService.findOne(id, req.user.houseId);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateEmployeeDto: UpdateEmployeeDto) {
-    return this.employeesService.update(id, updateEmployeeDto);
+  update(@Param('id') id: string, @Body() updateEmployeeDto: UpdateEmployeeDto, @Request() req) {
+    return this.employeesService.update(id, updateEmployeeDto, req.user.houseId);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.employeesService.remove(id);
+  remove(@Param('id') id: string, @Request() req) {
+    return this.employeesService.remove(id, req.user.houseId);
   }
 }

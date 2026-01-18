@@ -15,6 +15,7 @@ import { Payment } from './payments/payment.entity';
 import { Category } from './categories/category.entity';
 import { MarketExpense } from './market-expenses/market-expense.entity';
 import { LoggingInterceptor } from './common/logging.interceptor';
+import { HousesModule } from './houses/houses.module';
 
 @Module({
   imports: [
@@ -42,7 +43,8 @@ import { LoggingInterceptor } from './common/logging.interceptor';
     PaymentsModule,
     CategoriesModule,
     MarketExpensesModule,
-    EmailModule
+    EmailModule,
+    HousesModule
   ],
   providers: [
     {

@@ -20,7 +20,7 @@ import { extname } from 'path';
 import { PaymentsService } from './payments.service';
 import { CreatePaymentDto, SignPaymentDto, UpdatePaymentDto } from './dto/payment.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { SuperAdminGuard } from '../auth/super-admin.guard';
+import { AdminOrSuperAdminGuard } from '../auth/super-admin.guard';
 
 @Controller('payments')
 @UseGuards(JwtAuthGuard)
@@ -29,34 +29,34 @@ export class PaymentsController {
 
   @Post()
   create(@Body() createPaymentDto: CreatePaymentDto, @Request() req) {
-    return this.paymentsService.create(createPaymentDto, req.user.userId);
+    return this.paymentsService.create(createPaymentDto, req.user.userId, req.user.houseId);
   }
 
   @Get()
-  findAll() {
-    return this.paymentsService.findAll();
+  findAll(@Request() req) {
+    return this.paymentsService.findAll(req.user.houseId);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.paymentsService.findOne(id);
+  findOne(@Param('id') id: string, @Request() req) {
+    return this.paymentsService.findOne(id, req.user.houseId);
   }
 
   @Patch(':id')
-  @UseGuards(SuperAdminGuard)
-  update(@Param('id') id: string, @Body() updatePaymentDto: UpdatePaymentDto) {
-    return this.paymentsService.update(id, updatePaymentDto);
+  @UseGuards(AdminOrSuperAdminGuard)
+  update(@Param('id') id: string, @Body() updatePaymentDto: UpdatePaymentDto, @Request() req) {
+    return this.paymentsService.update(id, updatePaymentDto, req.user.houseId);
   }
 
   @Delete(':id')
-  @UseGuards(SuperAdminGuard)
-  remove(@Param('id') id: string) {
-    return this.paymentsService.remove(id);
+  @UseGuards(AdminOrSuperAdminGuard)
+  remove(@Param('id') id: string, @Request() req) {
+    return this.paymentsService.remove(id, req.user.houseId);
   }
 
   @Post(':id/sign')
-  signPayment(@Param('id') id: string, @Body() signPaymentDto: SignPaymentDto) {
-    return this.paymentsService.signPayment(id, signPaymentDto);
+  signPayment(@Param('id') id: string, @Body() signPaymentDto: SignPaymentDto, @Request() req) {
+    return this.paymentsService.signPayment(id, signPaymentDto, req.user.houseId);
   }
 
   @Post(':id/upload-signed')
@@ -75,16 +75,16 @@ export class PaymentsController {
       cb(null, true);
     }
   }))
-  uploadSignedDocument(@Param('id') id: string, @UploadedFile() file: Express.Multer.File) {
+  uploadSignedDocument(@Param('id') id: string, @UploadedFile() file: Express.Multer.File, @Request() req) {
     if (!file) {
       throw new BadRequestException('No se ha subido ningún archivo');
     }
-    return this.paymentsService.uploadSignedDocument(id, file.filename);
+    return this.paymentsService.uploadSignedDocument(id, file.filename, req.user.houseId);
   }
 
   @Get(':id/pdf')
-  async generatePDF(@Param('id') id: string, @Res() res: Response) {
-    const pdfBuffer = await this.paymentsService.generatePDF(id);
+  async generatePDF(@Param('id') id: string, @Res() res: Response, @Request() req) {
+    const pdfBuffer = await this.paymentsService.generatePDF(id, req.user.houseId);
     
     res.set({
       'Content-Type': 'application/pdf',

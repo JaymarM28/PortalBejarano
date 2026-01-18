@@ -16,6 +16,9 @@ export class CreateUserDto {
 
   @IsNotEmpty()
   fullName: string;
+
+  @IsOptional()
+  houseId?: string;  
 }
 
 export class UpdateUserDto {
@@ -33,6 +36,9 @@ export class UpdateUserDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  houseId?: string;
 }
 
 @Injectable()
@@ -42,39 +48,33 @@ export class UsersService {
     private userRepository: Repository<User>,
   ) {}
 
-  async create(createUserDto: CreateUserDto): Promise<User> {
-    console.log('👤 UsersService.create() - Datos recibidos:', JSON.stringify(createUserDto, null, 2));
-    console.log('📧 Email:', createUserDto.email);
-    console.log('🔑 Password:', createUserDto.password ? '✅ PRESENTE' : '❌ AUSENTE');
-    console.log('👤 FullName:', createUserDto.fullName);
-    
+  async create(createUserDto: CreateUserDto, houseId: string): Promise<User> {
     if (!createUserDto.password) {
       throw new Error('Password es requerido');
     }
     
-    console.log('🔐 Hasheando password...');
     const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
-    console.log('✅ Password hasheado:', hashedPassword.substring(0, 20) + '...');
     
-    // NO incluir password original en el spread
     const { password, ...userDataWithoutPassword } = createUserDto;
     
     const user = this.userRepository.create({
       ...userDataWithoutPassword,
       password: hashedPassword,
-      role: UserRole.ADMIN
+      role: UserRole.ADMIN,
+      houseId
     });
 
-    console.log('💾 Guardando usuario en BD...');
     const savedUser = await this.userRepository.save(user);
-    console.log('✅ Usuario guardado con ID:', savedUser.id);
     
     const { password: pwd, ...result } = savedUser;
     return result as User;
   }
 
-  async findAll(): Promise<User[]> {
+  async findAll(houseId?: string): Promise<User[]> {
+    const where = houseId ? { houseId } : {};
+    
     const users = await this.userRepository.find({
+      where,
       order: { createdAt: 'DESC' }
     });
     
@@ -84,8 +84,11 @@ export class UsersService {
     });
   }
 
-  async findOne(id: string): Promise<User> {
-    const user = await this.userRepository.findOne({ where: { id } });
+  async findOne(id: string, houseId?: string): Promise<User> {
+    const where: any = { id };
+    if (houseId) where.houseId = houseId;
+
+    const user = await this.userRepository.findOne({ where });
     if (!user) {
       throw new NotFoundException('Usuario no encontrado');
     }
@@ -94,17 +97,16 @@ export class UsersService {
     return result as User;
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
-    const user = await this.userRepository.findOne({ where: { id } });
+  async update(id: string, updateUserDto: UpdateUserDto, houseId?: string): Promise<User> {
+    const where: any = { id };
+    if (houseId) where.houseId = houseId;
+
+    const user = await this.userRepository.findOne({ where });
     if (!user) {
       throw new NotFoundException('Usuario no encontrado');
     }
 
-    console.log('🔄 UsersService.update() - Datos recibidos:', JSON.stringify(updateUserDto, null, 2));
-
-    // Si hay password, hashearlo
     if (updateUserDto.password) {
-      console.log('🔑 Actualizando password...');
       const hashedPassword = await bcrypt.hash(updateUserDto.password, 10);
       Object.assign(user, { ...updateUserDto, password: hashedPassword });
     } else {
@@ -117,12 +119,15 @@ export class UsersService {
     return result as User;
   }
 
-  async remove(id: string, currentUserId: string): Promise<void> {
+  async remove(id: string, currentUserId: string, houseId?: string): Promise<void> {
     if (id === currentUserId) {
       throw new ForbiddenException('No puedes eliminar tu propia cuenta');
     }
 
-    const user = await this.userRepository.findOne({ where: { id } });
+    const where: any = { id };
+    if (houseId) where.houseId = houseId;
+
+    const user = await this.userRepository.findOne({ where });
     if (!user) {
       throw new NotFoundException('Usuario no encontrado');
     }
@@ -137,13 +142,11 @@ export class UsersService {
       throw new NotFoundException('Usuario no encontrado');
     }
 
-    // Verificar contraseña actual
     const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
     if (!isPasswordValid) {
       throw new ForbiddenException('La contraseña actual es incorrecta');
     }
 
-    // Hashear nueva contraseña
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     user.password = hashedPassword;
     

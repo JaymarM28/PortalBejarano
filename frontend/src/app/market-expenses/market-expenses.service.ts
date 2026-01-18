@@ -9,6 +9,7 @@ export interface CreateMarketExpenseDto {
   notes?: string;
   category?: string;
   responsibleId: string;
+  houseId: string;
 }
 
 @Injectable({

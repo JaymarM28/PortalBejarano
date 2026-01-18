@@ -1,6 +1,7 @@
 export enum UserRole {
   SUPER_ADMIN = 'super_admin',
-  ADMIN = 'admin'
+  ADMIN = 'admin',
+  ADMINHOUSE = 'admin_house'  
 }
 
 export interface User {
@@ -10,6 +11,7 @@ export interface User {
   role: UserRole;
   isActive: boolean;
   createdAt: Date;
+  houseId: string;
 }
 
 export interface Employee {
@@ -22,6 +24,7 @@ export interface Employee {
   baseSalary: number;
   isActive: boolean;
   createdAt: Date;
+  houseId: string;
 }
 
 export enum PaymentStatus {
@@ -45,6 +48,7 @@ export interface Payment {
   signedDocumentUrl?: string;
   signedAt?: Date;
   createdAt: Date;
+  houseId: string;
 }
 
 export interface LoginRequest {
@@ -66,6 +70,7 @@ export interface Category {
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
+  houseId: string;
 }
 
 export interface MarketExpense {
@@ -80,6 +85,7 @@ export interface MarketExpense {
   createdBy: User;
   createdById: string;
   createdAt: Date;
+  houseId: string;
 }
 
 export interface MarketExpenseStats {
@@ -89,4 +95,26 @@ export interface MarketExpenseStats {
   count: number;
   byResponsible: Array<{ name: string; total: number; count: number }>;
   byPlace: Array<{ place: string; total: number; count: number }>;
+}
+
+export interface HouseStats {
+  usersCount: number;
+  employeesCount: number;
+  paymentsCount: number;
+}
+
+export interface House {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  isActive: boolean;
+  stats?: HouseStats;
+  users?: User;
+  employees?: Employee;
+  payments?: Payment;
+  categories?: Category;
+  marketExpenses?: MarketExpense;
+  createdAt: string;
+  updatedAt: string;
 }

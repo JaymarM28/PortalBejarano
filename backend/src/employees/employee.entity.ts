@@ -1,5 +1,6 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, OneToMany, ManyToOne, JoinColumn } from 'typeorm';
 import { Payment } from '../payments/payment.entity';
+import { House } from '../houses/house.entity';
 
 @Entity('employees')
 export class Employee {
@@ -26,6 +27,13 @@ export class Employee {
 
   @Column({ default: true })
   isActive: boolean;
+
+  @ManyToOne(() => House, house => house.employees)
+  @JoinColumn({ name: 'houseId' })
+  house: House;
+
+  @Column({ nullable: true })
+  houseId: string;    
 
   @OneToMany(() => Payment, payment => payment.employee)
   payments: Payment[];

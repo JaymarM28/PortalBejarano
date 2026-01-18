@@ -21,7 +21,8 @@ export class AuthService {
       email: registerDto.email,
       password: hashedPassword,
       fullName: registerDto.fullName,
-      role: createdByAdmin ? UserRole.ADMIN : UserRole.SUPER_ADMIN
+      role: createdByAdmin ? UserRole.ADMIN : UserRole.SUPER_ADMIN,
+      houseId: registerDto.houseId
     });
 
     await this.userRepository.save(user);
@@ -49,7 +50,8 @@ export class AuthService {
       sub: user.id, 
       email: user.email, 
       role: user.role,
-      fullName: user.fullName 
+      fullName: user.fullName,
+      houseId: user.houseId 
     };
     
     return {
@@ -58,7 +60,8 @@ export class AuthService {
         id: user.id,
         email: user.email,
         fullName: user.fullName,
-        role: user.role
+        role: user.role,
+        houseId: user.houseId
       }
     };
   }

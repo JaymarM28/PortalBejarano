@@ -1,5 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn } from 'typeorm';
 import { User } from '../users/user.entity';
+import { House } from '../houses/house.entity';
 
 @Entity('market_expenses')
 export class MarketExpense {
@@ -37,4 +38,11 @@ export class MarketExpense {
 
   @CreateDateColumn()
   createdAt: Date;
+
+  @ManyToOne(() => House, house => house.employees)
+  @JoinColumn({ name: 'houseId' })
+  house: House;
+
+  @Column({ nullable: true })
+  houseId: string;    
 }

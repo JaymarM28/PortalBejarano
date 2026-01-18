@@ -2,11 +2,12 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { AuthService } from '../auth/auth.service';
-import { EmployeesService, CreateEmployeeDto } from '../employees/employees.service';
-import { PaymentsService, CreatePaymentDto } from '../payments/payments.service';
-import { UsersService, CreateUserDto } from '../users/users.service';
-import { MarketExpensesService, CreateMarketExpenseDto } from '../market-expenses/market-expenses.service';
-import { Employee, Payment, User, MarketExpense, MarketExpenseStats } from '../shared/models';
+import { EmployeesService } from '../employees/employees.service';
+import { PaymentsService } from '../payments/payments.service';
+import { UsersService } from '../users/users.service';
+import { MarketExpensesService } from '../market-expenses/market-expenses.service';
+import { HousesService } from '../houses/houses.service';
+import { Employee, Payment, User, MarketExpense, MarketExpenseStats, House } from '../shared/models';
 import { NotificationService } from '../shared/notification.service';
 import { NotificationsComponent } from '../shared/notifications.component';
 import { SkeletonComponent } from '../shared/skeleton.component';
@@ -22,18 +23,21 @@ import { SignaturePadComponent } from '../shared/signature-pad.component';
 export class DashboardComponent implements OnInit {
   activeTab = 'payments';
   currentUser: User | null = null;
+  currentHouse?: House;
   
   // Data lists
   employees: Employee[] = [];
   payments: Payment[] = [];
   users: User[] = [];
   marketExpenses: MarketExpense[] = [];
-  
+  houses: House[] = [];
+
   // Loading states
   loadingEmployees = false;
   loadingPayments = false;
   loadingUsers = false;
   loadingMarketExpenses = false;
+  loadingHouses = false;
   
   // Filtros para pagos
   searchTerm = '';
@@ -54,7 +58,6 @@ export class DashboardComponent implements OnInit {
   get filteredPayments(): Payment[] {
     let filtered = [...this.payments];
 
-    // Filtro por búsqueda general (empleada o empleador)
     if (this.searchTerm) {
       const term = this.searchTerm.toLowerCase();
       filtered = filtered.filter(p => 
@@ -63,18 +66,15 @@ export class DashboardComponent implements OnInit {
       );
     }
 
-    // Filtro por empleada específica
     if (this.filterEmployee) {
       filtered = filtered.filter(p => p.employee.id === this.filterEmployee);
     }
 
-    // Filtro por fecha desde
     if (this.filterDateFrom) {
       const dateFrom = new Date(this.filterDateFrom);
       filtered = filtered.filter(p => new Date(p.paymentDate) >= dateFrom);
     }
 
-    // Filtro por fecha hasta
     if (this.filterDateTo) {
       const dateTo = new Date(this.filterDateTo);
       filtered = filtered.filter(p => new Date(p.paymentDate) <= dateTo);
@@ -93,7 +93,6 @@ export class DashboardComponent implements OnInit {
   get filteredMarketExpenses(): MarketExpense[] {
     let filtered = [...this.marketExpenses];
 
-    // Filtro por búsqueda general (lugar o responsable)
     if (this.expenseSearchTerm) {
       const term = this.expenseSearchTerm.toLowerCase();
       filtered = filtered.filter(e => 
@@ -102,24 +101,20 @@ export class DashboardComponent implements OnInit {
       );
     }
 
-    // Filtro por responsable específico
     if (this.expenseFilterResponsible) {
       filtered = filtered.filter(e => e.responsibleId === this.expenseFilterResponsible);
     }
 
-    // Filtro por lugar
     if (this.expenseFilterPlace) {
       const place = this.expenseFilterPlace.toLowerCase();
       filtered = filtered.filter(e => e.place.toLowerCase().includes(place));
     }
 
-    // Filtro por fecha desde
     if (this.expenseFilterDateFrom) {
       const dateFrom = new Date(this.expenseFilterDateFrom);
       filtered = filtered.filter(e => new Date(e.date) >= dateFrom);
     }
 
-    // Filtro por fecha hasta
     if (this.expenseFilterDateTo) {
       const dateTo = new Date(this.expenseFilterDateTo);
       filtered = filtered.filter(e => new Date(e.date) <= dateTo);
@@ -137,9 +132,7 @@ export class DashboardComponent implements OnInit {
   }
 
   exportToExcel(): void {
-    // Importar dinámicamente xlsx
     import('xlsx').then(XLSX => {
-      // Preparar datos para exportar
       const dataToExport = this.filteredPayments.map(payment => ({
         'Fecha': new Date(payment.paymentDate).toLocaleDateString('es-CO'),
         'Empleada': payment.employee.fullName,
@@ -153,29 +146,17 @@ export class DashboardComponent implements OnInit {
         'Notas': payment.notes || ''
       }));
 
-      // Crear libro de trabajo
       const ws = XLSX.utils.json_to_sheet(dataToExport);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Pagos');
 
-      // Ajustar ancho de columnas
       const colWidths = [
-        { wch: 12 }, // Fecha
-        { wch: 25 }, // Empleada
-        { wch: 25 }, // Empleador
-        { wch: 12 }, // Salario Base
-        { wch: 14 }, // Bonificaciones
-        { wch: 12 }, // Deducciones
-        { wch: 12 }, // Total
-        { wch: 12 }, // Estado
-        { wch: 30 }  // Notas
+        { wch: 12 }, { wch: 25 }, { wch: 25 }, { wch: 12 },
+        { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 30 }
       ];
       ws['!cols'] = colWidths;
 
-      // Generar nombre de archivo con fecha
       const fileName = `pagos_${new Date().toISOString().split('T')[0]}.xlsx`;
-      
-      // Descargar archivo
       XLSX.writeFile(wb, fileName);
       
       this.notificationService.success('Archivo Excel descargado exitosamente');
@@ -191,6 +172,7 @@ export class DashboardComponent implements OnInit {
   userForm: FormGroup;
   changePasswordForm: FormGroup;
   marketExpenseForm: FormGroup;
+  houseForm: FormGroup;
   
   // UI states
   showEmployeeModal = false;
@@ -199,11 +181,12 @@ export class DashboardComponent implements OnInit {
   showChangePasswordModal = false;
   showSignatureModal = false;
   showMarketExpenseModal = false;
+  showHouseModal = false;
   editingEmployee: Employee | null = null;
   editingPayment: Payment | null = null;
   editingUser: User | null = null;
   editingMarketExpense: MarketExpense | null = null;
-  selectedPayment: Payment | null = null;
+  editingHouse: House | null = null;
   paymentToSign: Payment | null = null;
   loading = false;
 
@@ -214,6 +197,7 @@ export class DashboardComponent implements OnInit {
     private paymentsService: PaymentsService,
     private usersService: UsersService,
     private marketExpensesService: MarketExpensesService,
+    private housesService: HousesService,
     private notificationService: NotificationService
   ) {
     this.currentUser = this.authService.getCurrentUser();
@@ -239,7 +223,8 @@ export class DashboardComponent implements OnInit {
     this.userForm = this.fb.group({
       fullName: ['', Validators.required],
       email: ['', [Validators.required, Validators.email]],
-      password: ['', [Validators.required, Validators.minLength(6)]]
+      password: ['', [Validators.required, Validators.minLength(6)]],
+      houseId: ['']
     });
 
     this.changePasswordForm = this.fb.group({
@@ -256,6 +241,12 @@ export class DashboardComponent implements OnInit {
       category: ['mercado'],
       responsibleId: ['', Validators.required]
     });
+
+    this.houseForm = this.fb.group({
+      name: ['', Validators.required],
+      slug: ['', Validators.required],
+      description: ['']
+    });
   }
 
   passwordMatchValidator(form: FormGroup) {
@@ -270,13 +261,122 @@ export class DashboardComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    // Cargar casas solo si es super_admin
+    if (this.currentUser?.role === 'super_admin') {
+      this.loadHouses();
+    } else {
+      // Cargar casa actual si tiene una asignada
+      this.loadCurrentHouse();
+    }
+    
     this.loadEmployees();
     this.loadPayments();
     this.loadMarketExpenses();
     this.loadUsers();
   }
 
-  // Load data methods
+  // ============ Método para obtener nombre de casa ============
+  getHouseName(houseId: string | undefined): string {
+    if (!houseId) return '-';
+    const house = this.houses.find(h => h.id === houseId);
+    return house?.name || 'N/A';
+  }
+
+  // ============ House Methods ============
+  loadHouses(): void {
+    this.loadingHouses = true;
+    this.housesService.getAll().subscribe({
+      next: (data) => {
+        this.houses = data;
+        this.loadingHouses = false;
+      },
+      error: (err) => {
+        this.notificationService.error('Error al cargar casas');
+        this.loadingHouses = false;
+      }
+    });
+  }
+
+  loadCurrentHouse(): void {
+    const houseId = this.authService.getHouseId();
+    if (!houseId) return;
+
+    this.housesService.getOne(houseId).subscribe({
+      next: (house) => {
+        this.currentHouse = house;
+      },
+      error: (err) => {
+        console.error('Error al cargar casa actual:', err);
+      }
+    });
+  }
+
+  openHouseModal(house?: House): void {
+    if (house) {
+      this.editingHouse = house;
+      this.houseForm.patchValue({
+        name: house.name,
+        slug: house.slug,
+        description: house.description
+      });
+    } else {
+      this.editingHouse = null;
+      this.houseForm.reset();
+    }
+    this.showHouseModal = true;
+  }
+
+  saveHouse(): void {
+    if (this.houseForm.valid) {
+      this.loading = true;
+      const formData = this.houseForm.value;
+
+      const operation = this.editingHouse
+        ? this.housesService.update(this.editingHouse.id, formData)
+        : this.housesService.create(formData);
+
+      operation.subscribe({
+        next: () => {
+          this.showHouseModal = false;
+          this.loadHouses();
+          this.loading = false;
+          this.notificationService.success(
+            this.editingHouse ? 'Casa actualizada' : 'Casa creada'
+          );
+        },
+        error: (err) => {
+          this.notificationService.error(
+            'Error: ' + (err.error?.message || 'Error desconocido')
+          );
+          this.loading = false;
+        }
+      });
+    }
+  }
+
+  deleteHouse(id: string): void {
+    if (confirm('¿Estás seguro de eliminar esta casa? Solo se puede eliminar si no tiene datos asociados.')) {
+      this.housesService.delete(id).subscribe({
+        next: () => {
+          this.loadHouses();
+          this.notificationService.success('Casa eliminada exitosamente');
+        },
+        error: (err) => {
+          this.notificationService.error(
+            err.error?.message || 'Error al eliminar casa'
+          );
+        }
+      });
+    }
+  }
+
+  closeHouseModal(): void {
+    this.showHouseModal = false;
+    this.editingHouse = null;
+    this.houseForm.reset();
+  }
+
+  // ============ Employee Methods ============
   loadEmployees(): void {
     this.loadingEmployees = true;
     this.employeesService.getAll().subscribe({
@@ -291,35 +391,6 @@ export class DashboardComponent implements OnInit {
     });
   }
 
-  loadPayments(): void {
-    this.loadingPayments = true;
-    this.paymentsService.getAll().subscribe({
-      next: (data) => {
-        this.payments = data;
-        this.loadingPayments = false;
-      },
-      error: (err) => {
-        this.notificationService.error('Error al cargar pagos');
-        this.loadingPayments = false;
-      }
-    });
-  }
-
-  loadUsers(): void {
-    this.loadingUsers = true;
-    this.usersService.getAll().subscribe({
-      next: (data) => {
-        this.users = data;
-        this.loadingUsers = false;
-      },
-      error: (err) => {
-        this.notificationService.error('Error al cargar usuarios');
-        this.loadingUsers = false;
-      }
-    });
-  }
-
-  // Employee methods
   openEmployeeModal(employee?: Employee): void {
     if (employee) {
       this.editingEmployee = employee;
@@ -336,7 +407,6 @@ export class DashboardComponent implements OnInit {
       this.loading = true;
       const formData = this.employeeForm.value;
       
-      // Limpiar datos: convertir strings vacíos en undefined y baseSalary a número
       const data: any = {
         fullName: formData.fullName,
         documentId: formData.documentId,
@@ -363,7 +433,6 @@ export class DashboardComponent implements OnInit {
           );
         },
         error: (err) => {
-          console.error('Error al guardar empleada:', err);
           this.notificationService.error(
             'Error al guardar empleada: ' + (err.error?.message || 'Error desconocido')
           );
@@ -387,12 +456,31 @@ export class DashboardComponent implements OnInit {
     }
   }
 
-  // Payment methods
+  // ============ Payment Methods ============
+  loadPayments(): void {
+    this.loadingPayments = true;
+    this.paymentsService.getAll().subscribe({
+      next: (data) => {
+        this.payments = data;
+        this.loadingPayments = false;
+      },
+      error: (err) => {
+        this.notificationService.error('Error al cargar pagos');
+        this.loadingPayments = false;
+      }
+    });
+  }
+
   openPaymentModal(): void {
     this.editingPayment = null;
     this.paymentForm.reset({ bonuses: 0, deductions: 0, paymentDate: new Date().toISOString().split('T')[0] });
     this.paymentForm.get('baseSalary')?.setValue(0);
     this.showPaymentModal = true;
+  }
+
+  closePaymentModal(): void {
+    this.showPaymentModal = false;
+    this.editingPayment = null;
   }
 
   onEmployeeChange(employeeId: string): void {
@@ -431,8 +519,7 @@ export class DashboardComponent implements OnInit {
 
       operation.subscribe({
         next: () => {
-          this.showPaymentModal = false;
-          this.editingPayment = null;
+          this.closePaymentModal();
           this.loadPayments();
           this.loading = false;
           this.notificationService.success(
@@ -508,18 +595,50 @@ export class DashboardComponent implements OnInit {
     });
   }
 
-  // User methods
+  // ============ User Methods ============
+  loadUsers(): void {
+    this.loadingUsers = true;
+    this.usersService.getAll().subscribe({
+      next: (data) => {
+        this.users = data;
+        this.loadingUsers = false;
+      },
+      error: (err) => {
+        this.notificationService.error('Error al cargar usuarios');
+        this.loadingUsers = false;
+      }
+    });
+  }
+
   openUserModal(user?: User): void {
     if (user) {
       this.editingUser = user;
-      this.userForm.patchValue({ fullName: user.fullName, email: user.email });
+      this.userForm.patchValue({ 
+        fullName: user.fullName, 
+        email: user.email,
+        houseId: user.houseId
+      });
       this.userForm.get('password')?.clearValidators();
     } else {
       this.editingUser = null;
       this.userForm.reset();
       this.userForm.get('password')?.setValidators([Validators.required, Validators.minLength(6)]);
+      
+      // Si NO es super_admin, auto-asignar su casa
+      if (this.currentUser?.role !== 'super_admin') {
+        this.userForm.patchValue({ houseId: this.authService.getHouseId() });
+      }
     }
+    
+    // Configurar validador de houseId según el rol
+    if (this.currentUser?.role === 'super_admin') {
+      this.userForm.get('houseId')?.setValidators([Validators.required]);
+    } else {
+      this.userForm.get('houseId')?.clearValidators();
+    }
+    
     this.userForm.get('password')?.updateValueAndValidity();
+    this.userForm.get('houseId')?.updateValueAndValidity();
     this.showUserModal = true;
   }
 
@@ -528,22 +647,38 @@ export class DashboardComponent implements OnInit {
       this.loading = true;
       const formData = this.userForm.value;
       
-      // Verificar que el usuario actual sea Super Admin
-      if (!this.authService.isSuperAdmin()) {
-        alert('Solo el Super Admin puede crear usuarios');
+      if (!this.authService.canManageUsers()) {
+        this.notificationService.error('No tienes permisos para crear usuarios');
         this.loading = false;
         return;
       }
       
-      // Limpiar datos: no enviar password si está vacío en modo edición
+      // Determinar houseId
+      let houseId: string;
+      if (this.currentUser?.role === 'super_admin') {
+        houseId = formData.houseId;
+      } else {
+        houseId = this.authService.getHouseId() || this.currentUser?.houseId || '';
+      }
+
+      // Validar que houseId no esté vacío
+      if (!houseId) {
+        this.notificationService.error('Debe seleccionar una casa para el usuario');
+        this.loading = false;
+        return;
+      }
+
       const data: any = {
         fullName: formData.fullName,
         email: formData.email,
+        houseId: houseId
       };
       
       if (formData.password) {
         data.password = formData.password;
       }
+
+      console.log('Enviando datos de usuario:', data); // Debug
 
       const operation = this.editingUser
         ? this.usersService.update(this.editingUser.id, data)
@@ -554,18 +689,14 @@ export class DashboardComponent implements OnInit {
           this.showUserModal = false;
           this.loadUsers();
           this.loading = false;
+          this.notificationService.success(
+            this.editingUser ? 'Usuario actualizado' : 'Usuario creado'
+          );
         },
         error: (err) => {
-          console.error('Error al guardar usuario:', err);
-          let errorMsg = 'Error desconocido';
-          
-          if (err.status === 401 || err.status === 403) {
-            errorMsg = 'No tienes permisos para crear usuarios. Solo el Super Admin puede hacerlo.';
-          } else if (err.error?.message) {
-            errorMsg = err.error.message;
-          }
-          
-          alert('Error al guardar usuario: ' + errorMsg);
+          this.notificationService.error(
+            'Error: ' + (err.error?.message || 'Error desconocido')
+          );
           this.loading = false;
         }
       });
@@ -574,11 +705,19 @@ export class DashboardComponent implements OnInit {
 
   deleteUser(id: string): void {
     if (confirm('¿Estás seguro de eliminar este usuario?')) {
-      this.usersService.delete(id).subscribe(() => this.loadUsers());
+      this.usersService.delete(id).subscribe({
+        next: () => {
+          this.loadUsers();
+          this.notificationService.success('Usuario eliminado exitosamente');
+        },
+        error: () => {
+          this.notificationService.error('Error al eliminar usuario');
+        }
+      });
     }
   }
 
-  // Market Expenses methods
+  // ============ Market Expenses Methods ============
   loadMarketExpenses(): void {
     this.loadingMarketExpenses = true;
     this.marketExpensesService.getAll().subscribe({
@@ -695,12 +834,7 @@ export class DashboardComponent implements OnInit {
       XLSX.utils.book_append_sheet(wb, ws, 'Gastos');
 
       const colWidths = [
-        { wch: 12 }, // Fecha
-        { wch: 25 }, // Lugar
-        { wch: 25 }, // Responsable
-        { wch: 15 }, // Categoría
-        { wch: 12 }, // Monto
-        { wch: 30 }  // Notas
+        { wch: 12 }, { wch: 25 }, { wch: 25 }, { wch: 15 }, { wch: 12 }, { wch: 30 }
       ];
       ws['!cols'] = colWidths;
 
@@ -714,6 +848,7 @@ export class DashboardComponent implements OnInit {
     });
   }
 
+  // ============ Auth Methods ============
   logout(): void {
     this.authService.logout();
   }

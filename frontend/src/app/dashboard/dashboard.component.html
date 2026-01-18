@@ -3,10 +3,16 @@
 <div class="dashboard-container">
   <!-- Header -->
   <header class="dashboard-header">
-    <h1>Sistema de Pagos</h1>
+    <div>
+      <h1>Sistema de Pagos</h1>
+      <small *ngIf="currentHouse">{{ currentHouse.name }}</small>
+    </div>
     <div class="user-info">
       <span>{{ currentUser?.fullName }}</span>
-      <span class="badge">{{ currentUser?.role === 'super_admin' ? 'Super Admin' : 'Admin' }}</span>
+      <span class="badge">
+        {{ currentUser?.role === 'super_admin' ? 'Super Admin' : 
+           currentUser?.role === 'admin_house' ? 'Admin Casa' : 'Admin' }}
+      </span>
       <button class="btn-change-password" (click)="openChangePasswordModal()" title="Cambiar contraseña">
         🔐
       </button>
@@ -35,11 +41,18 @@
       🛒 Gastos
     </button>
     <button 
-      *ngIf="authService.isSuperAdmin()"
+      *ngIf="authService.canManageUsers()"
       class="tab" 
       [class.active]="activeTab === 'users'" 
       (click)="activeTab = 'users'">
       👥 Usuarios
+    </button>
+    <button 
+      *ngIf="currentUser?.role === 'super_admin'"
+      class="tab" 
+      [class.active]="activeTab === 'houses'" 
+      (click)="activeTab = 'houses'">
+      🏠 Casas
     </button>
   </div>
 
@@ -132,13 +145,15 @@
                         title="Firmar">
                   ✍️
                 </button>
-                <button *ngIf="authService.isSuperAdmin()" 
-                        class="btn-icon" 
-                        (click)="openEditPaymentModal(payment)" 
-                        title="Editar">
+                <button
+                  *ngIf="payment.status === 'pending' 
+                        && (currentUser?.role === 'super_admin' || currentUser?.role === 'admin_house')"
+                  class="btn-icon"
+                  (click)="openEditPaymentModal(payment)"
+                  title="Editar">
                   ✏️
                 </button>
-                <button *ngIf="authService.isSuperAdmin()" 
+                <button *ngIf="currentUser?.role === 'super_admin' || currentUser?.role === 'admin_house'" 
                         class="btn-icon btn-danger" 
                         (click)="deletePayment(payment.id)" 
                         title="Eliminar">
@@ -343,7 +358,7 @@
     </div>
 
     <!-- Users Tab -->
-    <div *ngIf="activeTab === 'users' && authService.isSuperAdmin()" class="tab-content">
+    <div *ngIf="activeTab === 'users' && authService.canManageUsers()" class="tab-content">
       <div class="tab-header">
         <h2>Usuarios del Sistema</h2>
         <button class="btn-primary" (click)="openUserModal()">+ Nuevo Usuario</button>
@@ -358,6 +373,7 @@
               <th>Nombre</th>
               <th>Email</th>
               <th>Rol</th>
+              <th *ngIf="currentUser?.role === 'super_admin'">Casa</th>
               <th>Estado</th>
               <th>Acciones</th>
             </tr>
@@ -368,8 +384,15 @@
               <td>{{ user.email }}</td>
               <td>
                 <span class="badge">
-                  {{ user.role === 'super_admin' ? 'Super Admin' : 'Admin' }}
+                  {{ user.role === 'super_admin' ? 'Super Admin' : 
+                     user.role === 'admin_house' ? 'Admin Casa' : 'Admin' }}
                 </span>
+              </td>
+              <td *ngIf="currentUser?.role === 'super_admin'">
+                <span class="badge" *ngIf="user.houseId">
+                  {{ getHouseName(user.houseId) }}
+                </span>
+                <span *ngIf="!user.houseId">-</span>
               </td>
               <td>
                 <span class="status" [class.completed]="user.isActive" [class.pending]="!user.isActive">
@@ -387,6 +410,42 @@
 
       <div class="empty-state" *ngIf="!loadingUsers && users.length === 0">
         <p>No hay usuarios registrados todavía</p>
+      </div>
+    </div>
+
+    <!-- Houses Tab (Solo Super Admin) -->
+    <div *ngIf="activeTab === 'houses' && currentUser?.role === 'super_admin'" class="tab-content">
+      <div class="tab-header">
+        <h2>Casas del Sistema</h2>
+        <button class="btn-primary" (click)="openHouseModal()">+ Nueva Casa</button>
+      </div>
+
+      <app-skeleton [loading]="loadingHouses" [type]="'employee-card'"></app-skeleton>
+
+      <div class="cards-grid" *ngIf="!loadingHouses">
+        <div *ngFor="let house of houses" class="card">
+          <div class="card-header">
+            <h3>{{ house.name }}</h3>
+            <span class="badge" [class.inactive]="!house.isActive">
+              {{ house.isActive ? 'Activa' : 'Inactiva' }}
+            </span>
+          </div>
+          <div class="card-body">
+            <p><strong>Slug:</strong> {{ house.slug }}</p>
+            <p *ngIf="house.description"><strong>Descripción:</strong> {{ house.description }}</p>
+            <p><strong>Usuarios:</strong> {{ house.stats?.usersCount || 0 }}</p>
+            <p><strong>Empleadas:</strong> {{ house.stats?.employeesCount || 0 }}</p>
+            <p><strong>Pagos:</strong> {{ house.stats?.paymentsCount || 0 }}</p>
+          </div>
+          <div class="card-actions">
+            <button class="btn-sm" (click)="openHouseModal(house)">Editar</button>
+            <button class="btn-sm btn-danger" (click)="deleteHouse(house.id)">Eliminar</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="empty-state" *ngIf="!loadingHouses && houses.length === 0">
+        <p>No hay casas registradas todavía</p>
       </div>
     </div>
   </div>
@@ -434,11 +493,11 @@
   </div>
 
   <!-- Payment Modal -->
-  <div class="modal" *ngIf="showPaymentModal" (click)="showPaymentModal = false; editingPayment = null">
+  <div class="modal" *ngIf="showPaymentModal" (click)="closePaymentModal()">
     <div class="modal-content" (click)="$event.stopPropagation()">
       <div class="modal-header">
         <h3>{{ editingPayment ? 'Editar' : 'Registrar Nuevo' }} Pago</h3>
-        <button class="btn-close" (click)="showPaymentModal = false; editingPayment = null">×</button>
+        <button class="btn-close" (click)="closePaymentModal()">×</button>
       </div>
       <form [formGroup]="paymentForm" (ngSubmit)="savePayment()">
         <div class="form-group">
@@ -470,7 +529,7 @@
           <textarea formControlName="notes" class="form-control" rows="3"></textarea>
         </div>
         <div class="modal-actions">
-          <button type="button" class="btn-secondary" (click)="showPaymentModal = false">Cancelar</button>
+          <button type="button" class="btn-secondary" (click)="closePaymentModal()">Cancelar</button>
           <button type="submit" class="btn-primary" [disabled]="paymentForm.invalid || loading">
             {{ loading ? 'Creando...' : 'Crear Pago' }}
           </button>
@@ -487,6 +546,16 @@
         <button class="btn-close" (click)="showUserModal = false">×</button>
       </div>
       <form [formGroup]="userForm" (ngSubmit)="saveUser()">
+        
+        <!-- Solo mostrar selector si es super_admin -->
+        <div class="form-group" *ngIf="currentUser?.role === 'super_admin'">
+          <label>Casa *</label>
+          <select formControlName="houseId" class="form-control">
+            <option value="">Seleccionar casa</option>
+            <option *ngFor="let house of houses" [value]="house.id">{{ house.name }}</option>
+          </select>
+        </div>
+        
         <div class="form-group">
           <label>Nombre Completo *</label>
           <input type="text" formControlName="fullName" class="form-control">
@@ -495,8 +564,8 @@
           <label>Email *</label>
           <input type="email" formControlName="email" class="form-control">
         </div>
-        <div class="form-group">
-          <label>Contraseña {{ editingUser ? '(dejar en blanco para no cambiar)' : '*' }}</label>
+        <div class="form-group" *ngIf="!editingUser">
+          <label>Contraseña *</label>
           <input type="password" formControlName="password" class="form-control">
         </div>
         <div class="modal-actions">
@@ -597,6 +666,37 @@
         <div class="modal-actions">
           <button type="button" class="btn-secondary" (click)="closeMarketExpenseModal()">Cancelar</button>
           <button type="submit" class="btn-primary" [disabled]="marketExpenseForm.invalid || loading">
+            {{ loading ? 'Guardando...' : 'Guardar' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- House Modal -->
+  <div class="modal" *ngIf="showHouseModal" (click)="closeHouseModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>{{ editingHouse ? 'Editar' : 'Nueva' }} Casa</h3>
+        <button class="btn-close" (click)="closeHouseModal()">×</button>
+      </div>
+      <form [formGroup]="houseForm" (ngSubmit)="saveHouse()">
+        <div class="form-group">
+          <label>Nombre *</label>
+          <input type="text" formControlName="name" class="form-control" placeholder="Ej: Casa Principal">
+        </div>
+        <div class="form-group">
+          <label>Slug * (identificador único)</label>
+          <input type="text" formControlName="slug" class="form-control" placeholder="Ej: casa-principal">
+          <small class="form-hint">Solo letras minúsculas, números y guiones</small>
+        </div>
+        <div class="form-group">
+          <label>Descripción</label>
+          <textarea formControlName="description" class="form-control" rows="3" placeholder="Descripción opcional..."></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" (click)="closeHouseModal()">Cancelar</button>
+          <button type="submit" class="btn-primary" [disabled]="houseForm.invalid || loading">
             {{ loading ? 'Guardando...' : 'Guardar' }}
           </button>
         </div>

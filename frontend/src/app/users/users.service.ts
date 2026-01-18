@@ -7,6 +7,15 @@ export interface CreateUserDto {
   email: string;
   password: string;
   fullName: string;
+  houseId: string;
+}
+
+export interface UpdateUserDto {
+  email?: string;
+  password?: string;
+  fullName?: string;
+  houseId?: string;
+  isActive?: boolean;
 }
 
 @Injectable({
@@ -24,11 +33,27 @@ export class UsersService {
   }
 
   create(data: CreateUserDto): Observable<User> {
-    return this.apiService.post<User>('users', data);
+    // Asegurar que houseId se envíe en el body
+    const payload = {
+      email: data.email,
+      password: data.password,
+      fullName: data.fullName,
+      houseId: data.houseId
+    };
+    return this.apiService.post<User>('users', payload);
   }
 
-  update(id: string, data: Partial<CreateUserDto>): Observable<User> {
-    return this.apiService.patch<User>(`users/${id}`, data);
+  update(id: string, data: UpdateUserDto): Observable<User> {
+    // Construir payload solo con campos definidos
+    const payload: any = {};
+    
+    if (data.email !== undefined) payload.email = data.email;
+    if (data.password !== undefined && data.password !== '') payload.password = data.password;
+    if (data.fullName !== undefined) payload.fullName = data.fullName;
+    if (data.houseId !== undefined) payload.houseId = data.houseId;
+    if (data.isActive !== undefined) payload.isActive = data.isActive;
+    
+    return this.apiService.patch<User>(`users/${id}`, payload);
   }
 
   delete(id: string): Observable<void> {

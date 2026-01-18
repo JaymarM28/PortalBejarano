@@ -10,6 +10,7 @@ export interface CreatePaymentDto {
   bonuses?: number;
   deductions?: number;
   notes?: string;
+  houseId: string;
 }
 
 @Injectable({

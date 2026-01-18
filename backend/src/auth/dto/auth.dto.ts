@@ -21,4 +21,8 @@ export class RegisterDto {
 
   @IsNotEmpty()
   fullName: string;
+
+  @IsNotEmpty()
+  houseId: string;
+
 }

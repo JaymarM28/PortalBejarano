@@ -1,4 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { House } from '../houses/house.entity';
 
 @Entity('categories')
 export class Category {
@@ -25,4 +26,12 @@ export class Category {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+   @ManyToOne(() => House, house => house.employees)
+   @JoinColumn({ name: 'houseId' })
+   house: House;
+ 
+   @Column({ nullable: true })
+   houseId: string; 
+
 }

@@ -54,4 +54,18 @@ export class AuthService {
     const user = this.getCurrentUser();
     return user?.role === 'super_admin';
   }
+
+   isHouseAdmin(): boolean {
+    const user = this.getCurrentUser();
+    return user?.role === 'admin_house';
+  } 
+
+  getHouseId(): string | null {
+    const user = this.getCurrentUser();
+    return user?.houseId || null;
+  }
+
+  canManageUsers(): boolean {
+    return this.isHouseAdmin() || this.isSuperAdmin();
+  }
 }

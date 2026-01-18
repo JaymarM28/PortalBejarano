@@ -21,36 +21,36 @@ export class MarketExpensesController {
 
   @Post()
   create(@Body() createDto: CreateMarketExpenseDto, @Request() req) {
-    return this.marketExpensesService.create(createDto, req.user.userId);
+    return this.marketExpensesService.create(createDto, req.user.userId, req.user.houseId);
   }
 
   @Get()
-  findAll() {
-    return this.marketExpensesService.findAll();
+  findAll(@Request() req) {
+    return this.marketExpensesService.findAll(req.user.houseId);
   }
 
   @Get('stats/month')
-  getStatsByMonth(@Query('year') year: number, @Query('month') month: number) {
-    return this.marketExpensesService.getStatsByMonth(Number(year), Number(month));
+  getStatsByMonth(@Query('year') year: number, @Query('month') month: number, @Request() req) {
+    return this.marketExpensesService.getStatsByMonth(Number(year), Number(month), req.user.houseId);
   }
 
   @Get('stats/general')
-  getGeneralStats() {
-    return this.marketExpensesService.getGeneralStats();
+  getGeneralStats(@Request() req) {
+    return this.marketExpensesService.getGeneralStats(req.user.houseId);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.marketExpensesService.findOne(id);
+  findOne(@Param('id') id: string, @Request() req) {
+    return this.marketExpensesService.findOne(id, req.user.houseId);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateDto: UpdateMarketExpenseDto) {
-    return this.marketExpensesService.update(id, updateDto);
+  update(@Param('id') id: string, @Body() updateDto: UpdateMarketExpenseDto, @Request() req) {
+    return this.marketExpensesService.update(id, updateDto, req.user.houseId);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.marketExpensesService.remove(id);
+  remove(@Param('id') id: string, @Request() req) {
+    return this.marketExpensesService.remove(id, req.user.houseId);
   }
 }

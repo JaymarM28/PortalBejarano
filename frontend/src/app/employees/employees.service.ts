@@ -10,6 +10,7 @@ export interface CreateEmployeeDto {
   address?: string;
   position?: string;
   baseSalary?: number;
+  houseId: string;
 }
 
 @Injectable({
