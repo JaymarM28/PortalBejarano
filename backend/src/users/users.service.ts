@@ -84,11 +84,8 @@ export class UsersService {
     });
   }
 
-  async findOne(id: string, houseId?: string): Promise<User> {
-    const where: any = { id };
-    if (houseId) where.houseId = houseId;
-
-    const user = await this.userRepository.findOne({ where });
+  async findOne(id: string): Promise<User> {
+    const user = await this.userRepository.findOne({ where: { id } });
     if (!user) {
       throw new NotFoundException('Usuario no encontrado');
     }
@@ -97,11 +94,8 @@ export class UsersService {
     return result as User;
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto, houseId?: string): Promise<User> {
-    const where: any = { id };
-    if (houseId) where.houseId = houseId;
-
-    const user = await this.userRepository.findOne({ where });
+  async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
+    const user = await this.userRepository.findOne({ where: { id } });
     if (!user) {
       throw new NotFoundException('Usuario no encontrado');
     }
@@ -119,15 +113,12 @@ export class UsersService {
     return result as User;
   }
 
-  async remove(id: string, currentUserId: string, houseId?: string): Promise<void> {
+  async remove(id: string, currentUserId: string): Promise<void> {
     if (id === currentUserId) {
       throw new ForbiddenException('No puedes eliminar tu propia cuenta');
     }
 
-    const where: any = { id };
-    if (houseId) where.houseId = houseId;
-
-    const user = await this.userRepository.findOne({ where });
+    const user = await this.userRepository.findOne({ where: { id } });
     if (!user) {
       throw new NotFoundException('Usuario no encontrado');
     }

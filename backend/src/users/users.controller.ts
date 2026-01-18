@@ -32,20 +32,20 @@ findAll(@Request() req) {
 }
 
   @Get(':id')
-  findOne(@Param('id') id: string, @Request() req) {
-    return this.usersService.findOne(id, req.user.houseId);
+  findOne(@Param('id') id: string) {
+    return this.usersService.findOne(id);
   }
 
   @Patch(':id')
   @UseGuards(AdminOrSuperAdminGuard)
-  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto, @Request() req) {
-    return this.usersService.update(id, updateUserDto, req.user.houseId);
+  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
+    return this.usersService.update(id, updateUserDto);
   }
 
   @Delete(':id')
   @UseGuards(AdminOrSuperAdminGuard)
   remove(@Param('id') id: string, @Request() req) {
-    return this.usersService.remove(id, req.user.userId, req.user.houseId);
+    return this.usersService.remove(id, req.user.userId);
   }
 
   @Patch('me/password')
