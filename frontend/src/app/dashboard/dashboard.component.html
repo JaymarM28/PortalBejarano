@@ -237,60 +237,170 @@
         </div>
       </div>
 
-      <!-- Expenses Tab -->
-      <div *ngIf="activeTab === 'expenses'" class="tab-content">
-        <div class="tab-header">
-          <h2>Historial de Gastos</h2>
-          <button class="btn-primary" (click)="openMarketExpenseModal()">
-            <span class="btn-icon-only">+</span>
-            <span class="btn-text">Nuevo Gasto</span>
-          </button>
-        </div>
+    <!-- Expenses Tab -->
+<div *ngIf="activeTab === 'expenses'" class="tab-content">
+  <div class="tab-header">
+    <h2>Gastos de Mercado</h2>
 
-        <app-skeleton [loading]="loadingMarketExpenses" [type]="'payment-table'"></app-skeleton>
+    <div class="header-actions">
+      <button class="btn-secondary"
+              (click)="exportMarketExpensesToExcel()"
+              [disabled]="filteredMarketExpenses.length === 0">
+        <span class="btn-icon-only">📊</span>
+        <span class="btn-text">Exportar a Excel</span>
+      </button>
 
-        <div class="table-responsive" *ngIf="!loadingMarketExpenses && marketExpenses.length > 0">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Fecha</th>
-                <th>Lugar</th>
-                <th>Categoría</th>
-                <th>Responsable</th>
-                <th>Monto</th>
-                <th>Notas</th>
-                <th class="actions-column">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let expense of marketExpenses">
-                <td data-label="Fecha">{{ expense.date | date: 'dd/MM/yyyy' }}</td>
-                <td data-label="Lugar">{{ expense.place }}</td>
-                <td data-label="Categoría">
-                  <span class="status completed">{{ expense.category }}</span>
-                </td>
-                <td data-label="Responsable">{{ expense.responsible.fullName || 'N/A' }}</td>
-                <td data-label="Monto">${{ expense.amount | number: '1.2-2' }}</td>
-                <td data-label="Notas">
-                  <span class="expense-notes" [title]="expense.notes || ''">
-                    {{ expense.notes || '-' }}
-                  </span>
-                </td>
-                <td class="actions-column" data-label="Acciones">
-                  <div class="action-buttons">
-                    <button class="btn-icon" (click)="openMarketExpenseModal(expense)" title="Editar">✏️</button>
-                    <button class="btn-icon btn-danger" (click)="deleteMarketExpense(expense.id)" title="Eliminar">🗑️</button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+      <button class="btn-primary" (click)="openMarketExpenseModal()">
+        <span class="btn-icon-only">+</span>
+        <span class="btn-text">Nuevo Gasto</span>
+      </button>
+    </div>
+  </div>
 
-        <div class="empty-state" *ngIf="!loadingMarketExpenses && marketExpenses.length === 0">
-          <p>🛒 No hay gastos registrados todavía</p>
+  <!-- Estadísticas del Mes -->
+  <div class="stats-section" *ngIf="monthStats">
+    <h3>📊 Estadísticas del Mes</h3>
+
+    <div class="month-selector">
+      <label>Mes:</label>
+      <select [(ngModel)]="selectedMonth" (change)="onMonthYearChange()" class="filter-select">
+        <option [value]="1">Enero</option>
+        <option [value]="2">Febrero</option>
+        <option [value]="3">Marzo</option>
+        <option [value]="4">Abril</option>
+        <option [value]="5">Mayo</option>
+        <option [value]="6">Junio</option>
+        <option [value]="7">Julio</option>
+        <option [value]="8">Agosto</option>
+        <option [value]="9">Septiembre</option>
+        <option [value]="10">Octubre</option>
+        <option [value]="11">Noviembre</option>
+        <option [value]="12">Diciembre</option>
+      </select>
+
+      <label>Año:</label>
+      <input type="number"
+             [(ngModel)]="selectedYear"
+             (change)="onMonthYearChange()"
+             class="filter-input year-input">
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Total del Mes</div>
+        <div class="stat-value">${{ monthStats.total | number: '1.2-2' }}</div>
+        <div class="stat-subtitle">{{ monthStats.count }} compras</div>
+      </div>
+
+      <div class="stat-card" *ngIf="monthStats.byResponsible.length > 0">
+        <div class="stat-label">Por Responsable</div>
+        <div class="stat-list">
+          <div *ngFor="let item of monthStats.byResponsible" class="stat-item">
+            <span>{{ item.name }}</span>
+            <span class="stat-amount">${{ item.total | number: '1.2-2' }}</span>
+          </div>
         </div>
       </div>
+
+      <div class="stat-card" *ngIf="monthStats.byPlace.length > 0">
+        <div class="stat-label">Por Lugar</div>
+        <div class="stat-list">
+          <div *ngFor="let item of monthStats.byPlace" class="stat-item">
+            <span>{{ item.place }}</span>
+            <span class="stat-amount">${{ item.total | number: '1.2-2' }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filtros -->
+  <div class="filters-section">
+    <div class="filter-group full-width">
+      <input
+        type="text"
+        [(ngModel)]="expenseSearchTerm"
+        placeholder="🔍 Buscar por lugar o responsable..."
+        class="filter-input">
+    </div>
+
+    <div class="filter-row">
+      <div class="filter-group">
+        <label>Responsable:</label>
+        <select [(ngModel)]="expenseFilterResponsible" class="filter-select">
+          <option value="">Todos</option>
+          <option *ngFor="let user of users" [value]="user.id">{{ user.fullName }}</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label>Lugar:</label>
+        <input type="text" [(ngModel)]="expenseFilterPlace" placeholder="Ej: Éxito, Carulla..." class="filter-input">
+      </div>
+
+      <div class="filter-group">
+        <label>Desde:</label>
+        <input type="date" [(ngModel)]="expenseFilterDateFrom" class="filter-input">
+      </div>
+
+      <div class="filter-group">
+        <label>Hasta:</label>
+        <input type="date" [(ngModel)]="expenseFilterDateTo" class="filter-input">
+      </div>
+
+      <button class="btn-link" (click)="clearExpenseFilters()">Limpiar</button>
+    </div>
+
+    <div class="filter-results" *ngIf="filteredMarketExpenses.length !== marketExpenses.length">
+      Mostrando {{ filteredMarketExpenses.length }} de {{ marketExpenses.length }} gastos
+    </div>
+  </div>
+
+  <app-skeleton [loading]="loadingMarketExpenses" [type]="'payment-table'"></app-skeleton>
+
+  <div class="table-responsive" *ngIf="!loadingMarketExpenses && filteredMarketExpenses.length > 0">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Lugar</th>
+          <th>Responsable</th>
+          <th>Categoría</th>
+          <th>Monto</th>
+          <th>Notas</th>
+          <th class="actions-column">Acciones</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        <tr *ngFor="let expense of filteredMarketExpenses">
+          <td data-label="Fecha">{{ expense.date | date: 'dd/MM/yyyy' }}</td>
+          <td data-label="Lugar">{{ expense.place }}</td>
+          <td data-label="Responsable">{{ expense.responsible.fullName }}</td>
+          <td data-label="Categoría">
+            <span class="badge">{{ expense.category || 'N/A' }}</span>
+          </td>
+          <td data-label="Monto">${{ expense.amount | number: '1.2-2' }}</td>
+          <td data-label="Notas">
+            <span class="expense-notes">{{ expense.notes || '-' }}</span>
+          </td>
+
+          <td class="actions-column" data-label="Acciones">
+            <div class="action-buttons">
+              <button class="btn-icon" (click)="openMarketExpenseModal(expense)" title="Editar">✏️</button>
+              <button class="btn-icon btn-danger" (click)="deleteMarketExpense(expense.id)" title="Eliminar">🗑️</button>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="empty-state" *ngIf="!loadingMarketExpenses && filteredMarketExpenses.length === 0">
+    <p>No hay gastos registrados todavía</p>
+  </div>
+</div>
+
 
       <!-- Users Tab -->
       <div *ngIf="activeTab === 'users' && authService.canManageUsers()" class="tab-content">

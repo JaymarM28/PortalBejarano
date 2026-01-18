@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { Router } from '@angular/router';
 import { BehaviorSubject, Observable, tap } from 'rxjs';
 import { ApiService } from '../core/api.service';
-import { User, LoginRequest, LoginResponse } from '../shared/models';
+import { User, LoginRequest, LoginResponse, House } from '../shared/models';
 
 @Injectable({
   providedIn: 'root'
@@ -10,6 +10,10 @@ import { User, LoginRequest, LoginResponse } from '../shared/models';
 export class AuthService {
   private currentUserSubject = new BehaviorSubject<User | null>(null);
   public currentUser$ = this.currentUserSubject.asObservable();
+
+private currentHouseSubject = new BehaviorSubject<House | null>(null);
+public currentHouse$ = this.currentHouseSubject.asObservable();
+  
 
   constructor(
     private apiService: ApiService,

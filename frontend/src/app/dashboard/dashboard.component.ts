@@ -59,7 +59,6 @@ export class DashboardComponent implements OnInit {
   selectedYear = new Date().getFullYear();
   monthStats: MarketExpenseStats | null = null;
 
-  // Computed properties
   get filteredPayments(): Payment[] {
     let filtered = [...this.payments];
 
@@ -120,7 +119,6 @@ export class DashboardComponent implements OnInit {
 
     return filtered;
   }
-
   // Forms
   employeeForm: FormGroup;
   paymentForm: FormGroup;
