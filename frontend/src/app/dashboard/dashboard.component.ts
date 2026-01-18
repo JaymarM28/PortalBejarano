@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { AuthService } from '../auth/auth.service';
@@ -24,6 +24,10 @@ export class DashboardComponent implements OnInit {
   activeTab = 'payments';
   currentUser: User | null = null;
   currentHouse?: House;
+  
+  // Sidebar state - NUEVO
+  sidebarExpanded = false;
+  mobileSidebarOpen = false;
   
   // Data lists
   employees: Employee[] = [];
@@ -55,6 +59,7 @@ export class DashboardComponent implements OnInit {
   selectedYear = new Date().getFullYear();
   monthStats: MarketExpenseStats | null = null;
 
+  // Computed properties
   get filteredPayments(): Payment[] {
     let filtered = [...this.payments];
 
@@ -81,13 +86,6 @@ export class DashboardComponent implements OnInit {
     }
 
     return filtered;
-  }
-
-  clearFilters(): void {
-    this.searchTerm = '';
-    this.filterEmployee = '';
-    this.filterDateFrom = '';
-    this.filterDateTo = '';
   }
 
   get filteredMarketExpenses(): MarketExpense[] {
@@ -123,49 +121,6 @@ export class DashboardComponent implements OnInit {
     return filtered;
   }
 
-  clearExpenseFilters(): void {
-    this.expenseSearchTerm = '';
-    this.expenseFilterResponsible = '';
-    this.expenseFilterDateFrom = '';
-    this.expenseFilterDateTo = '';
-    this.expenseFilterPlace = '';
-  }
-
-  exportToExcel(): void {
-    import('xlsx').then(XLSX => {
-      const dataToExport = this.filteredPayments.map(payment => ({
-        'Fecha': new Date(payment.paymentDate).toLocaleDateString('es-CO'),
-        'Empleada': payment.employee.fullName,
-        'Empleador': payment.employer.fullName,
-        'Salario Base': payment.baseSalary,
-        'Bonificaciones': payment.bonuses || 0,
-        'Deducciones': payment.deductions || 0,
-        'Total': payment.totalAmount,
-        'Estado': payment.status === 'pending' ? 'Pendiente' : 
-                  payment.status === 'signed' ? 'Firmado' : 'Completado',
-        'Notas': payment.notes || ''
-      }));
-
-      const ws = XLSX.utils.json_to_sheet(dataToExport);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Pagos');
-
-      const colWidths = [
-        { wch: 12 }, { wch: 25 }, { wch: 25 }, { wch: 12 },
-        { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 30 }
-      ];
-      ws['!cols'] = colWidths;
-
-      const fileName = `pagos_${new Date().toISOString().split('T')[0]}.xlsx`;
-      XLSX.writeFile(wb, fileName);
-      
-      this.notificationService.success('Archivo Excel descargado exitosamente');
-    }).catch(err => {
-      console.error('Error al exportar:', err);
-      this.notificationService.error('Error al exportar a Excel');
-    });
-  }
-  
   // Forms
   employeeForm: FormGroup;
   paymentForm: FormGroup;
@@ -275,14 +230,130 @@ export class DashboardComponent implements OnInit {
     this.loadUsers();
   }
 
-  // ============ Método para obtener nombre de casa ============
+  // ==========================================
+  // SIDEBAR FUNCTIONS - NUEVO
+  // ==========================================
+  
+  toggleMobileSidebar() {
+    this.mobileSidebarOpen = !this.mobileSidebarOpen;
+  }
+
+  setActiveTab(tab: string) {
+    this.activeTab = tab;
+    // Close mobile sidebar when selecting a tab
+    if (this.mobileSidebarOpen) {
+      this.mobileSidebarOpen = false;
+    }
+  }
+
+  // Close mobile sidebar when pressing Escape key
+  @HostListener('document:keydown.escape')
+  onEscapeKey() {
+    this.mobileSidebarOpen = false;
+  }
+
+  // ==========================================
+  // FILTERS
+  // ==========================================
+
+  clearFilters(): void {
+    this.searchTerm = '';
+    this.filterEmployee = '';
+    this.filterDateFrom = '';
+    this.filterDateTo = '';
+  }
+
+  clearExpenseFilters(): void {
+    this.expenseSearchTerm = '';
+    this.expenseFilterResponsible = '';
+    this.expenseFilterDateFrom = '';
+    this.expenseFilterDateTo = '';
+    this.expenseFilterPlace = '';
+  }
+
+  // ==========================================
+  // EXPORT TO EXCEL
+  // ==========================================
+
+  exportToExcel(): void {
+    import('xlsx').then(XLSX => {
+      const dataToExport = this.filteredPayments.map(payment => ({
+        'Fecha': new Date(payment.paymentDate).toLocaleDateString('es-CO'),
+        'Empleada': payment.employee.fullName,
+        'Empleador': payment.employer.fullName,
+        'Salario Base': payment.baseSalary,
+        'Bonificaciones': payment.bonuses || 0,
+        'Deducciones': payment.deductions || 0,
+        'Total': payment.totalAmount,
+        'Estado': payment.status === 'pending' ? 'Pendiente' : 
+                  payment.status === 'signed' ? 'Firmado' : 'Completado',
+        'Notas': payment.notes || ''
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(dataToExport);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Pagos');
+
+      const colWidths = [
+        { wch: 12 }, { wch: 25 }, { wch: 25 }, { wch: 12 },
+        { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 30 }
+      ];
+      ws['!cols'] = colWidths;
+
+      const fileName = `pagos_${new Date().toISOString().split('T')[0]}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+      
+      this.notificationService.success('Archivo Excel descargado exitosamente');
+    }).catch(err => {
+      console.error('Error al exportar:', err);
+      this.notificationService.error('Error al exportar a Excel');
+    });
+  }
+
+  exportMarketExpensesToExcel(): void {
+    import('xlsx').then(XLSX => {
+      const dataToExport = this.filteredMarketExpenses.map(expense => ({
+        'Fecha': new Date(expense.date).toLocaleDateString('es-CO'),
+        'Lugar': expense.place,
+        'Responsable': expense.responsible.fullName,
+        'Categoría': expense.category || 'N/A',
+        'Monto': expense.amount,
+        'Notas': expense.notes || ''
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(dataToExport);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Gastos');
+
+      const colWidths = [
+        { wch: 12 }, { wch: 25 }, { wch: 25 }, { wch: 15 }, { wch: 12 }, { wch: 30 }
+      ];
+      ws['!cols'] = colWidths;
+
+      const fileName = `gastos_mercado_${new Date().toISOString().split('T')[0]}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+      
+      this.notificationService.success('Archivo Excel descargado exitosamente');
+    }).catch(err => {
+      console.error('Error al exportar:', err);
+      this.notificationService.error('Error al exportar a Excel');
+    });
+  }
+
+  // ==========================================
+  // UTILITY METHODS
+  // ==========================================
+
   getHouseName(houseId: string | undefined): string {
     if (!houseId) return '-';
     const house = this.houses.find(h => h.id === houseId);
     return house?.name || 'N/A';
   }
 
-  // ============ House Methods ============
+  // ==========================================
+  // HOUSE METHODS
+  // ==========================================
+
   loadHouses(): void {
     this.loadingHouses = true;
     this.housesService.getAll().subscribe({
@@ -376,7 +447,10 @@ export class DashboardComponent implements OnInit {
     this.houseForm.reset();
   }
 
-  // ============ Employee Methods ============
+  // ==========================================
+  // EMPLOYEE METHODS
+  // ==========================================
+
   loadEmployees(): void {
     this.loadingEmployees = true;
     this.employeesService.getAll().subscribe({
@@ -456,7 +530,10 @@ export class DashboardComponent implements OnInit {
     }
   }
 
-  // ============ Payment Methods ============
+  // ==========================================
+  // PAYMENT METHODS
+  // ==========================================
+
   loadPayments(): void {
     this.loadingPayments = true;
     this.paymentsService.getAll().subscribe({
@@ -567,6 +644,10 @@ export class DashboardComponent implements OnInit {
     });
   }
 
+  // ==========================================
+  // SIGNATURE METHODS
+  // ==========================================
+
   openSignatureModal(payment: Payment): void {
     this.paymentToSign = payment;
     this.showSignatureModal = true;
@@ -595,7 +676,10 @@ export class DashboardComponent implements OnInit {
     });
   }
 
-  // ============ User Methods ============
+  // ==========================================
+  // USER METHODS
+  // ==========================================
+
   loadUsers(): void {
     this.loadingUsers = true;
     this.usersService.getAll().subscribe({
@@ -678,8 +762,6 @@ export class DashboardComponent implements OnInit {
         data.password = formData.password;
       }
 
-      console.log('Enviando datos de usuario:', data); // Debug
-
       const operation = this.editingUser
         ? this.usersService.update(this.editingUser.id, data)
         : this.usersService.create(data);
@@ -717,7 +799,10 @@ export class DashboardComponent implements OnInit {
     }
   }
 
-  // ============ Market Expenses Methods ============
+  // ==========================================
+  // MARKET EXPENSE METHODS
+  // ==========================================
+
   loadMarketExpenses(): void {
     this.loadingMarketExpenses = true;
     this.marketExpensesService.getAll().subscribe({
@@ -818,40 +903,9 @@ export class DashboardComponent implements OnInit {
     }
   }
 
-  exportMarketExpensesToExcel(): void {
-    import('xlsx').then(XLSX => {
-      const dataToExport = this.filteredMarketExpenses.map(expense => ({
-        'Fecha': new Date(expense.date).toLocaleDateString('es-CO'),
-        'Lugar': expense.place,
-        'Responsable': expense.responsible.fullName,
-        'Categoría': expense.category || 'N/A',
-        'Monto': expense.amount,
-        'Notas': expense.notes || ''
-      }));
-
-      const ws = XLSX.utils.json_to_sheet(dataToExport);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Gastos');
-
-      const colWidths = [
-        { wch: 12 }, { wch: 25 }, { wch: 25 }, { wch: 15 }, { wch: 12 }, { wch: 30 }
-      ];
-      ws['!cols'] = colWidths;
-
-      const fileName = `gastos_mercado_${new Date().toISOString().split('T')[0]}.xlsx`;
-      XLSX.writeFile(wb, fileName);
-      
-      this.notificationService.success('Archivo Excel descargado exitosamente');
-    }).catch(err => {
-      console.error('Error al exportar:', err);
-      this.notificationService.error('Error al exportar a Excel');
-    });
-  }
-
-  // ============ Auth Methods ============
-  logout(): void {
-    this.authService.logout();
-  }
+  // ==========================================
+  // PASSWORD CHANGE
+  // ==========================================
 
   openChangePasswordModal(): void {
     this.changePasswordForm.reset();
@@ -887,5 +941,13 @@ export class DashboardComponent implements OnInit {
         }
       });
     }
+  }
+
+  // ==========================================
+  // AUTH
+  // ==========================================
+
+  logout(): void {
+    this.authService.logout();
   }
 }
