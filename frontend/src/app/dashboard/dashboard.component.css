@@ -1131,3 +1131,190 @@ textarea.form-control {
     font-size: 16px; /* Evita zoom en iOS */
   }
 }
+
+/* ========================================
+   MATERIAL ICONS STYLES
+   Agregar al archivo dashboard.component.css
+   ======================================== */
+
+/* Iconos en navegación */
+.nav-icon {
+  font-size: 20px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Logo icon */
+.logo-icon {
+  font-size: 28px;
+  color: #ffffff;  /* Blanco en lugar de azul */
+}
+
+/* Iconos en botones */
+.btn-icon mat-icon,
+.btn-sm mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  vertical-align: middle;
+}
+
+.btn-sm mat-icon {
+  margin-right: 4px;
+}
+
+/* Icono solo en botón */
+.btn-icon-only {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  line-height: 1;
+}
+
+/* Iconos de estado vacío */
+.empty-state .empty-icon {
+  font-size: 48px;
+  width: 48px;
+  height: 48px;
+  color: #9ca3af;
+  margin-bottom: 12px;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: #6b7280;
+}
+
+/* Input con icono */
+.input-with-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-with-icon .input-icon {
+  position: absolute;
+  left: 12px;
+  color: #9ca3af;
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+  pointer-events: none;
+}
+
+.input-with-icon .filter-input.with-icon {
+  padding-left: 40px;
+}
+
+/* Botón cerrar modal */
+.btn-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  transition: color 0.2s;
+}
+
+.btn-close:hover {
+  color: #1f2937;
+}
+
+.btn-close mat-icon {
+  font-size: 24px;
+  width: 24px;
+  height: 24px;
+}
+
+/* Botón cerrar mobile en sidebar */
+.btn-close-mobile {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+
+.btn-close-mobile mat-icon {
+  font-size: 24px;
+  width: 24px;
+  height: 24px;
+}
+
+@media (max-width: 768px) {
+  .btn-close-mobile {
+    display: flex;
+  }
+}
+
+/* Hamburger menu con icono */
+.btn-menu-mobile {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  color: #374151;
+}
+
+.btn-menu-mobile mat-icon {
+  font-size: 28px;
+  width: 28px;
+  height: 28px;
+}
+
+@media (max-width: 768px) {
+  .btn-menu-mobile {
+    display: flex;
+  }
+}
+
+/* Iconos en header de estadísticas */
+.stats-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stats-section h3 mat-icon {
+  font-size: 24px;
+  width: 24px;
+  height: 24px;
+  color: var(--primary-color, #667eea);
+}
+
+/* Action buttons en tablas */
+.action-buttons {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.action-buttons .btn-icon {
+  padding: 6px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.action-buttons .btn-icon mat-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+}

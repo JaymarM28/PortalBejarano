@@ -12,11 +12,12 @@ import { NotificationService } from '../shared/notification.service';
 import { NotificationsComponent } from '../shared/notifications.component';
 import { SkeletonComponent } from '../shared/skeleton.component';
 import { SignaturePadComponent } from '../shared/signature-pad.component';
+import { MatIconModule } from '@angular/material/icon';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, FormsModule, NotificationsComponent, SkeletonComponent, SignaturePadComponent],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule, NotificationsComponent, SkeletonComponent, SignaturePadComponent, MatIconModule],
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.css']
 })
@@ -161,11 +162,14 @@ export class DashboardComponent implements OnInit {
       phone: [''],
       address: [''],
       position: [''],
-      baseSalary: ['']
+      baseSalary: [''],
+      isActive: [true]
     });
 
+    // FIX: Agregar employerId al formulario
     this.paymentForm = this.fb.group({
       employeeId: ['', Validators.required],
+      employerId: ['', Validators.required],  // <-- AGREGADO
       paymentDate: ['', Validators.required],
       baseSalary: [{ value: 0, disabled: true }],
       bonuses: [0, Validators.min(0)],
@@ -217,11 +221,9 @@ export class DashboardComponent implements OnInit {
     // Cargar casas solo si es super_admin
     if (this.currentUser?.role === 'super_admin') {
       this.loadHouses();
-    } else {
-      // Cargar casa actual si tiene una asignada
-      this.loadCurrentHouse();
     }
     
+    this.loadCurrentHouse();
     this.loadEmployees();
     this.loadPayments();
     this.loadMarketExpenses();
@@ -463,16 +465,19 @@ export class DashboardComponent implements OnInit {
     });
   }
 
-  openEmployeeModal(employee?: Employee): void {
-    if (employee) {
-      this.editingEmployee = employee;
-      this.employeeForm.patchValue(employee);
-    } else {
-      this.editingEmployee = null;
-      this.employeeForm.reset();
-    }
-    this.showEmployeeModal = true;
+openEmployeeModal(employee?: Employee): void {
+  if (employee) {
+    this.editingEmployee = employee;
+    this.employeeForm.patchValue({
+      ...employee,
+      isActive: employee.isActive ?? true
+    });
+  } else {
+    this.editingEmployee = null;
+    this.employeeForm.reset({ isActive: true });
   }
+  this.showEmployeeModal = true;
+}
 
   saveEmployee(): void {
     if (this.employeeForm.valid) {
@@ -482,6 +487,7 @@ export class DashboardComponent implements OnInit {
       const data: any = {
         fullName: formData.fullName,
         documentId: formData.documentId,
+        isActive: formData.isActive
       };
       
       if (formData.phone?.trim()) data.phone = formData.phone.trim();
@@ -546,9 +552,15 @@ export class DashboardComponent implements OnInit {
     });
   }
 
+  // FIX: Agregar employerId por defecto (usuario logueado)
   openPaymentModal(): void {
     this.editingPayment = null;
-    this.paymentForm.reset({ bonuses: 0, deductions: 0, paymentDate: new Date().toISOString().split('T')[0] });
+    this.paymentForm.reset({ 
+      bonuses: 0, 
+      deductions: 0, 
+      paymentDate: new Date().toISOString().split('T')[0],
+      employerId: this.currentUser?.id || ''  // <-- Usuario logueado por defecto
+    });
     this.paymentForm.get('baseSalary')?.setValue(0);
     this.showPaymentModal = true;
   }
@@ -565,10 +577,12 @@ export class DashboardComponent implements OnInit {
     }
   }
 
+  // FIX: Agregar employerId al patchValue
   openEditPaymentModal(payment: Payment): void {
     this.editingPayment = payment;
     this.paymentForm.patchValue({
       employeeId: payment.employee.id,
+      employerId: payment.employer.id,  // <-- AGREGADO
       paymentDate: payment.paymentDate.toString().split('T')[0],
       bonuses: payment.bonuses || 0,
       deductions: payment.deductions || 0,
@@ -831,6 +845,7 @@ export class DashboardComponent implements OnInit {
     this.loadMonthStats();
   }
 
+  // FIX: También agregar responsibleId por defecto para gastos de mercado
   openMarketExpenseModal(expense?: MarketExpense): void {
     if (expense) {
       this.editingMarketExpense = expense;
@@ -847,7 +862,8 @@ export class DashboardComponent implements OnInit {
       this.marketExpenseForm.reset({
         date: new Date().toISOString().split('T')[0],
         amount: 0,
-        category: 'mercado'
+        category: 'mercado',
+        responsibleId: this.currentUser?.id || ''  // <-- Usuario logueado por defecto
       });
     }
     this.showMarketExpenseModal = true;

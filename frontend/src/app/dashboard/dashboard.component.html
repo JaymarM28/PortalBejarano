@@ -5,10 +5,12 @@
   <aside class="sidebar" [class.expanded]="sidebarExpanded" [class.mobile-open]="mobileSidebarOpen">
     <div class="sidebar-header">
       <div class="logo">
-        <span class="logo-icon">🏠</span>
+        <mat-icon class="logo-icon">home</mat-icon>
         <span class="logo-text">Portal</span>
       </div>
-      <button class="btn-close-mobile" (click)="toggleMobileSidebar()">×</button>
+      <button class="btn-close-mobile" (click)="toggleMobileSidebar()">
+        <mat-icon>close</mat-icon>
+      </button>
     </div>
 
     <nav class="sidebar-nav">
@@ -16,7 +18,7 @@
         class="nav-item" 
         [class.active]="activeTab === 'payments'" 
         (click)="setActiveTab('payments')">
-        <span class="nav-icon">📋</span>
+        <mat-icon class="nav-icon">receipt_long</mat-icon>
         <span class="nav-text">Pagos</span>
       </a>
       
@@ -24,7 +26,7 @@
         class="nav-item" 
         [class.active]="activeTab === 'employees'" 
         (click)="setActiveTab('employees')">
-        <span class="nav-icon">👤</span>
+        <mat-icon class="nav-icon">person</mat-icon>
         <span class="nav-text">Empleadas</span>
       </a>
       
@@ -32,7 +34,7 @@
         class="nav-item" 
         [class.active]="activeTab === 'expenses'" 
         (click)="setActiveTab('expenses')">
-        <span class="nav-icon">🛒</span>
+        <mat-icon class="nav-icon">shopping_cart</mat-icon>
         <span class="nav-text">Gastos</span>
       </a>
       
@@ -41,7 +43,7 @@
         class="nav-item" 
         [class.active]="activeTab === 'users'" 
         (click)="setActiveTab('users')">
-        <span class="nav-icon">👥</span>
+        <mat-icon class="nav-icon">group</mat-icon>
         <span class="nav-text">Usuarios</span>
       </a>
       
@@ -50,18 +52,18 @@
         class="nav-item" 
         [class.active]="activeTab === 'houses'" 
         (click)="setActiveTab('houses')">
-        <span class="nav-icon">🏘️</span>
+        <mat-icon class="nav-icon">apartment</mat-icon>
         <span class="nav-text">Casas</span>
       </a>
     </nav>
 
     <div class="sidebar-footer">
       <a class="nav-item" (click)="openChangePasswordModal()">
-        <span class="nav-icon">🔐</span>
+        <mat-icon class="nav-icon">lock</mat-icon>
         <span class="nav-text">Contraseña</span>
       </a>
       <a class="nav-item logout" (click)="logout()">
-        <span class="nav-icon">🚪</span>
+        <mat-icon class="nav-icon">logout</mat-icon>
         <span class="nav-text">Salir</span>
       </a>
     </div>
@@ -75,13 +77,11 @@
     <!-- Header -->
     <header class="dashboard-header">
       <button class="btn-menu-mobile" (click)="toggleMobileSidebar()">
-        <span></span>
-        <span></span>
-        <span></span>
+        <mat-icon>menu</mat-icon>
       </button>
       <div class="header-left">
         <h1>Sistema de Pagos</h1>
-        <small *ngIf="currentHouse">{{ currentHouse.name }}</small>
+        <small *ngIf="currentHouse">{{ currentHouse?.name }}</small>
       </div>
       <div class="user-info">
         <span class="user-name">{{ currentUser?.fullName }}</span>
@@ -100,11 +100,11 @@
           <h2>Historial de Pagos</h2>
           <div class="header-actions">
             <button class="btn-secondary" (click)="exportToExcel()" [disabled]="filteredPayments.length === 0">
-              <span class="btn-icon-only">📊</span>
+              <mat-icon class="btn-icon-only">table_chart</mat-icon>
               <span class="btn-text">Exportar a Excel</span>
             </button>
             <button class="btn-primary" (click)="openPaymentModal()">
-              <span class="btn-icon-only">+</span>
+              <mat-icon class="btn-icon-only">add</mat-icon>
               <span class="btn-text">Nuevo Pago</span>
             </button>
           </div>
@@ -113,11 +113,14 @@
         <!-- Filtros -->
         <div class="filters-section">
           <div class="filter-group full-width">
-            <input 
-              type="text" 
-              [(ngModel)]="searchTerm" 
-              placeholder="🔍 Buscar por empleada o empleador..."
-              class="filter-input">
+            <div class="input-with-icon">
+              <mat-icon class="input-icon">search</mat-icon>
+              <input 
+                type="text" 
+                [(ngModel)]="searchTerm" 
+                placeholder="Buscar por empleada o empleador..."
+                class="filter-input with-icon">
+            </div>
           </div>
           
           <div class="filter-row">
@@ -177,17 +180,25 @@
                 </td>
                 <td class="actions-column" data-label="Acciones">
                   <div class="action-buttons">
-                    <button class="btn-icon" (click)="downloadPDF(payment.id)" title="Descargar PDF">📄</button>
-                    <button *ngIf="payment.status === 'pending'" class="btn-icon" (click)="openSignatureModal(payment)" title="Firmar">✍️</button>
+                    <button class="btn-icon" (click)="downloadPDF(payment.id)" title="Descargar PDF">
+                      <mat-icon>picture_as_pdf</mat-icon>
+                    </button>
+                    <button *ngIf="payment.status === 'pending'" class="btn-icon" (click)="openSignatureModal(payment)" title="Firmar">
+                      <mat-icon>draw</mat-icon>
+                    </button>
                     <button
                       *ngIf="payment.status === 'pending' && (currentUser?.role === 'super_admin' || currentUser?.role === 'admin_house')"
                       class="btn-icon"
                       (click)="openEditPaymentModal(payment)"
-                      title="Editar">✏️</button>
+                      title="Editar">
+                      <mat-icon>edit</mat-icon>
+                    </button>
                     <button *ngIf="currentUser?.role === 'super_admin' || currentUser?.role === 'admin_house'" 
                             class="btn-icon btn-danger" 
                             (click)="deletePayment(payment.id)" 
-                            title="Eliminar">🗑️</button>
+                            title="Eliminar">
+                      <mat-icon>delete</mat-icon>
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -196,7 +207,8 @@
         </div>
 
         <div class="empty-state" *ngIf="!loadingPayments && payments.length === 0">
-          <p>📋 No hay pagos registrados todavía</p>
+          <mat-icon class="empty-icon">receipt_long</mat-icon>
+          <p>No hay pagos registrados todavía</p>
         </div>
       </div>
 
@@ -205,7 +217,7 @@
         <div class="tab-header">
           <h2>Empleadas</h2>
           <button class="btn-primary" (click)="openEmployeeModal()">
-            <span class="btn-icon-only">+</span>
+            <mat-icon class="btn-icon-only">add</mat-icon>
             <span class="btn-text">Nueva Empleada</span>
           </button>
         </div>
@@ -226,188 +238,200 @@
               <p><strong>Salario:</strong> ${{ employee.baseSalary | number: '1.2-2' }}</p>
             </div>
             <div class="card-actions">
-              <button class="btn-sm" (click)="openEmployeeModal(employee)">✏️ Editar</button>
-              <button class="btn-sm btn-danger" (click)="deleteEmployee(employee.id)">🗑️ Eliminar</button>
+              <button class="btn-sm" (click)="openEmployeeModal(employee)">
+                <mat-icon>edit</mat-icon> Editar
+              </button>
+              <button class="btn-sm btn-danger" (click)="deleteEmployee(employee.id)">
+                <mat-icon>delete</mat-icon> Eliminar
+              </button>
             </div>
           </div>
         </div>
 
         <div class="empty-state" *ngIf="!loadingEmployees && employees.length === 0">
-          <p>👤 No hay empleadas registradas todavía</p>
+          <mat-icon class="empty-icon">person</mat-icon>
+          <p>No hay empleadas registradas todavía</p>
         </div>
       </div>
 
-    <!-- Expenses Tab -->
-<div *ngIf="activeTab === 'expenses'" class="tab-content">
-  <div class="tab-header">
-    <h2>Gastos de Mercado</h2>
+      <!-- Expenses Tab -->
+      <div *ngIf="activeTab === 'expenses'" class="tab-content">
+        <div class="tab-header">
+          <h2>Gastos de Mercado</h2>
 
-    <div class="header-actions">
-      <button class="btn-secondary"
-              (click)="exportMarketExpensesToExcel()"
-              [disabled]="filteredMarketExpenses.length === 0">
-        <span class="btn-icon-only">📊</span>
-        <span class="btn-text">Exportar a Excel</span>
-      </button>
+          <div class="header-actions">
+            <button class="btn-secondary"
+                    (click)="exportMarketExpensesToExcel()"
+                    [disabled]="filteredMarketExpenses.length === 0">
+              <mat-icon class="btn-icon-only">table_chart</mat-icon>
+              <span class="btn-text">Exportar a Excel</span>
+            </button>
 
-      <button class="btn-primary" (click)="openMarketExpenseModal()">
-        <span class="btn-icon-only">+</span>
-        <span class="btn-text">Nuevo Gasto</span>
-      </button>
-    </div>
-  </div>
-
-  <!-- Estadísticas del Mes -->
-  <div class="stats-section" *ngIf="monthStats">
-    <h3>📊 Estadísticas del Mes</h3>
-
-    <div class="month-selector">
-      <label>Mes:</label>
-      <select [(ngModel)]="selectedMonth" (change)="onMonthYearChange()" class="filter-select">
-        <option [value]="1">Enero</option>
-        <option [value]="2">Febrero</option>
-        <option [value]="3">Marzo</option>
-        <option [value]="4">Abril</option>
-        <option [value]="5">Mayo</option>
-        <option [value]="6">Junio</option>
-        <option [value]="7">Julio</option>
-        <option [value]="8">Agosto</option>
-        <option [value]="9">Septiembre</option>
-        <option [value]="10">Octubre</option>
-        <option [value]="11">Noviembre</option>
-        <option [value]="12">Diciembre</option>
-      </select>
-
-      <label>Año:</label>
-      <input type="number"
-             [(ngModel)]="selectedYear"
-             (change)="onMonthYearChange()"
-             class="filter-input year-input">
-    </div>
-
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-label">Total del Mes</div>
-        <div class="stat-value">${{ monthStats.total | number: '1.2-2' }}</div>
-        <div class="stat-subtitle">{{ monthStats.count }} compras</div>
-      </div>
-
-      <div class="stat-card" *ngIf="monthStats.byResponsible.length > 0">
-        <div class="stat-label">Por Responsable</div>
-        <div class="stat-list">
-          <div *ngFor="let item of monthStats.byResponsible" class="stat-item">
-            <span>{{ item.name }}</span>
-            <span class="stat-amount">${{ item.total | number: '1.2-2' }}</span>
+            <button class="btn-primary" (click)="openMarketExpenseModal()">
+              <mat-icon class="btn-icon-only">add</mat-icon>
+              <span class="btn-text">Nuevo Gasto</span>
+            </button>
           </div>
         </div>
-      </div>
 
-      <div class="stat-card" *ngIf="monthStats.byPlace.length > 0">
-        <div class="stat-label">Por Lugar</div>
-        <div class="stat-list">
-          <div *ngFor="let item of monthStats.byPlace" class="stat-item">
-            <span>{{ item.place }}</span>
-            <span class="stat-amount">${{ item.total | number: '1.2-2' }}</span>
+        <!-- Estadísticas del Mes -->
+        <div class="stats-section" *ngIf="monthStats">
+          <h3><mat-icon>bar_chart</mat-icon> Estadísticas del Mes</h3>
+
+          <div class="month-selector">
+            <label>Mes:</label>
+            <select [(ngModel)]="selectedMonth" (change)="onMonthYearChange()" class="filter-select">
+              <option [value]="1">Enero</option>
+              <option [value]="2">Febrero</option>
+              <option [value]="3">Marzo</option>
+              <option [value]="4">Abril</option>
+              <option [value]="5">Mayo</option>
+              <option [value]="6">Junio</option>
+              <option [value]="7">Julio</option>
+              <option [value]="8">Agosto</option>
+              <option [value]="9">Septiembre</option>
+              <option [value]="10">Octubre</option>
+              <option [value]="11">Noviembre</option>
+              <option [value]="12">Diciembre</option>
+            </select>
+
+            <label>Año:</label>
+            <input type="number"
+                   [(ngModel)]="selectedYear"
+                   (change)="onMonthYearChange()"
+                   class="filter-input year-input">
           </div>
-        </div>
-      </div>
-    </div>
-  </div>
 
-  <!-- Filtros -->
-  <div class="filters-section">
-    <div class="filter-group full-width">
-      <input
-        type="text"
-        [(ngModel)]="expenseSearchTerm"
-        placeholder="🔍 Buscar por lugar o responsable..."
-        class="filter-input">
-    </div>
-
-    <div class="filter-row">
-      <div class="filter-group">
-        <label>Responsable:</label>
-        <select [(ngModel)]="expenseFilterResponsible" class="filter-select">
-          <option value="">Todos</option>
-          <option *ngFor="let user of users" [value]="user.id">{{ user.fullName }}</option>
-        </select>
-      </div>
-
-      <div class="filter-group">
-        <label>Lugar:</label>
-        <input type="text" [(ngModel)]="expenseFilterPlace" placeholder="Ej: Éxito, Carulla..." class="filter-input">
-      </div>
-
-      <div class="filter-group">
-        <label>Desde:</label>
-        <input type="date" [(ngModel)]="expenseFilterDateFrom" class="filter-input">
-      </div>
-
-      <div class="filter-group">
-        <label>Hasta:</label>
-        <input type="date" [(ngModel)]="expenseFilterDateTo" class="filter-input">
-      </div>
-
-      <button class="btn-link" (click)="clearExpenseFilters()">Limpiar</button>
-    </div>
-
-    <div class="filter-results" *ngIf="filteredMarketExpenses.length !== marketExpenses.length">
-      Mostrando {{ filteredMarketExpenses.length }} de {{ marketExpenses.length }} gastos
-    </div>
-  </div>
-
-  <app-skeleton [loading]="loadingMarketExpenses" [type]="'payment-table'"></app-skeleton>
-
-  <div class="table-responsive" *ngIf="!loadingMarketExpenses && filteredMarketExpenses.length > 0">
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>Fecha</th>
-          <th>Lugar</th>
-          <th>Responsable</th>
-          <th>Categoría</th>
-          <th>Monto</th>
-          <th>Notas</th>
-          <th class="actions-column">Acciones</th>
-        </tr>
-      </thead>
-
-      <tbody>
-        <tr *ngFor="let expense of filteredMarketExpenses">
-          <td data-label="Fecha">{{ expense.date | date: 'dd/MM/yyyy' }}</td>
-          <td data-label="Lugar">{{ expense.place }}</td>
-          <td data-label="Responsable">{{ expense.responsible.fullName }}</td>
-          <td data-label="Categoría">
-            <span class="badge">{{ expense.category || 'N/A' }}</span>
-          </td>
-          <td data-label="Monto">${{ expense.amount | number: '1.2-2' }}</td>
-          <td data-label="Notas">
-            <span class="expense-notes">{{ expense.notes || '-' }}</span>
-          </td>
-
-          <td class="actions-column" data-label="Acciones">
-            <div class="action-buttons">
-              <button class="btn-icon" (click)="openMarketExpenseModal(expense)" title="Editar">✏️</button>
-              <button class="btn-icon btn-danger" (click)="deleteMarketExpense(expense.id)" title="Eliminar">🗑️</button>
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-label">Total del Mes</div>
+              <div class="stat-value">${{ monthStats.total | number: '1.2-2' }}</div>
+              <div class="stat-subtitle">{{ monthStats.count }} compras</div>
             </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
 
-  <div class="empty-state" *ngIf="!loadingMarketExpenses && filteredMarketExpenses.length === 0">
-    <p>No hay gastos registrados todavía</p>
-  </div>
-</div>
+            <div class="stat-card" *ngIf="monthStats.byResponsible.length > 0">
+              <div class="stat-label">Por Responsable</div>
+              <div class="stat-list">
+                <div *ngFor="let item of monthStats.byResponsible" class="stat-item">
+                  <span>{{ item.name }}</span>
+                  <span class="stat-amount">${{ item.total | number: '1.2-2' }}</span>
+                </div>
+              </div>
+            </div>
 
+            <div class="stat-card" *ngIf="monthStats.byPlace.length > 0">
+              <div class="stat-label">Por Lugar</div>
+              <div class="stat-list">
+                <div *ngFor="let item of monthStats.byPlace" class="stat-item">
+                  <span>{{ item.place }}</span>
+                  <span class="stat-amount">${{ item.total | number: '1.2-2' }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="filters-section">
+          <div class="filter-group full-width">
+            <div class="input-with-icon">
+              <mat-icon class="input-icon">search</mat-icon>
+              <input
+                type="text"
+                [(ngModel)]="expenseSearchTerm"
+                placeholder="Buscar por lugar o responsable..."
+                class="filter-input with-icon">
+            </div>
+          </div>
+
+          <div class="filter-row">
+            <div class="filter-group">
+              <label>Responsable:</label>
+              <select [(ngModel)]="expenseFilterResponsible" class="filter-select">
+                <option value="">Todos</option>
+                <option *ngFor="let user of users" [value]="user.id">{{ user.fullName }}</option>
+              </select>
+            </div>
+
+            <div class="filter-group">
+              <label>Lugar:</label>
+              <input type="text" [(ngModel)]="expenseFilterPlace" placeholder="Ej: Éxito, Carulla..." class="filter-input">
+            </div>
+
+            <div class="filter-group">
+              <label>Desde:</label>
+              <input type="date" [(ngModel)]="expenseFilterDateFrom" class="filter-input">
+            </div>
+
+            <div class="filter-group">
+              <label>Hasta:</label>
+              <input type="date" [(ngModel)]="expenseFilterDateTo" class="filter-input">
+            </div>
+
+            <button class="btn-link" (click)="clearExpenseFilters()">Limpiar</button>
+          </div>
+
+          <div class="filter-results" *ngIf="filteredMarketExpenses.length !== marketExpenses.length">
+            Mostrando {{ filteredMarketExpenses.length }} de {{ marketExpenses.length }} gastos
+          </div>
+        </div>
+
+        <app-skeleton [loading]="loadingMarketExpenses" [type]="'payment-table'"></app-skeleton>
+
+        <div class="table-responsive" *ngIf="!loadingMarketExpenses && filteredMarketExpenses.length > 0">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Lugar</th>
+                <th>Responsable</th>
+                <th>Categoría</th>
+                <th>Monto</th>
+                <th>Notas</th>
+                <th class="actions-column">Acciones</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              <tr *ngFor="let expense of filteredMarketExpenses">
+                <td data-label="Fecha">{{ expense.date | date: 'dd/MM/yyyy' }}</td>
+                <td data-label="Lugar">{{ expense.place }}</td>
+                <td data-label="Responsable">{{ expense.responsible.fullName }}</td>
+                <td data-label="Categoría">
+                  <span class="badge">{{ expense.category || 'N/A' }}</span>
+                </td>
+                <td data-label="Monto">${{ expense.amount | number: '1.2-2' }}</td>
+                <td data-label="Notas">
+                  <span class="expense-notes">{{ expense.notes || '-' }}</span>
+                </td>
+
+                <td class="actions-column" data-label="Acciones">
+                  <div class="action-buttons">
+                    <button class="btn-icon" (click)="openMarketExpenseModal(expense)" title="Editar">
+                      <mat-icon>edit</mat-icon>
+                    </button>
+                    <button class="btn-icon btn-danger" (click)="deleteMarketExpense(expense.id)" title="Eliminar">
+                      <mat-icon>delete</mat-icon>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="empty-state" *ngIf="!loadingMarketExpenses && filteredMarketExpenses.length === 0">
+          <mat-icon class="empty-icon">shopping_cart</mat-icon>
+          <p>No hay gastos registrados todavía</p>
+        </div>
+      </div>
 
       <!-- Users Tab -->
       <div *ngIf="activeTab === 'users' && authService.canManageUsers()" class="tab-content">
         <div class="tab-header">
           <h2>Usuarios</h2>
           <button class="btn-primary" (click)="openUserModal()">
-            <span class="btn-icon-only">+</span>
+            <mat-icon class="btn-icon-only">add</mat-icon>
             <span class="btn-text">Nuevo Usuario</span>
           </button>
         </div>
@@ -428,15 +452,20 @@
                 <strong>Casa:</strong> {{ getHouseName(user.houseId) }}
               </p>
             </div>
-            <div class="card-actions" *ngIf="user.id !== currentUser?.id">
-              <button class="btn-sm" (click)="openUserModal(user)">✏️ Editar</button>
-              <button class="btn-sm btn-danger" (click)="deleteUser(user.id)">🗑️ Eliminar</button>
+            <div class="card-actions">
+              <button class="btn-sm" (click)="openUserModal(user)">
+                <mat-icon>edit</mat-icon> Editar
+              </button>
+              <button *ngIf="user.id !== currentUser?.id" class="btn-sm btn-danger" (click)="deleteUser(user.id)">
+                <mat-icon>delete</mat-icon> Eliminar
+              </button>
             </div>
           </div>
         </div>
 
         <div class="empty-state" *ngIf="!loadingUsers && users.length === 0">
-          <p>👥 No hay usuarios registrados todavía</p>
+          <mat-icon class="empty-icon">group</mat-icon>
+          <p>No hay usuarios registrados todavía</p>
         </div>
       </div>
 
@@ -445,7 +474,7 @@
         <div class="tab-header">
           <h2>Casas</h2>
           <button class="btn-primary" (click)="openHouseModal()">
-            <span class="btn-icon-only">+</span>
+            <mat-icon class="btn-icon-only">add</mat-icon>
             <span class="btn-text">Nueva Casa</span>
           </button>
         </div>
@@ -463,14 +492,19 @@
               <p><strong>ID:</strong> {{ house.id }}</p>
             </div>
             <div class="card-actions">
-              <button class="btn-sm" (click)="openHouseModal(house)">✏️ Editar</button>
-              <button class="btn-sm btn-danger" (click)="deleteHouse(house.id)">🗑️ Eliminar</button>
+              <button class="btn-sm" (click)="openHouseModal(house)">
+                <mat-icon>edit</mat-icon> Editar
+              </button>
+              <button class="btn-sm btn-danger" (click)="deleteHouse(house.id)">
+                <mat-icon>delete</mat-icon> Eliminar
+              </button>
             </div>
           </div>
         </div>
 
         <div class="empty-state" *ngIf="!loadingHouses && houses.length === 0">
-          <p>🏠 No hay casas registradas todavía</p>
+          <mat-icon class="empty-icon">apartment</mat-icon>
+          <p>No hay casas registradas todavía</p>
         </div>
       </div>
     </div>
@@ -482,7 +516,9 @@
   <div class="modal-content" (click)="$event.stopPropagation()">
     <div class="modal-header">
       <h3>{{ editingEmployee ? 'Editar' : 'Nueva' }} Empleada</h3>
-      <button class="btn-close" (click)="showEmployeeModal = false">×</button>
+      <button class="btn-close" (click)="showEmployeeModal = false">
+        <mat-icon>close</mat-icon>
+      </button>
     </div>
     <form [formGroup]="employeeForm" (ngSubmit)="saveEmployee()">
       <div class="form-group">
@@ -522,7 +558,9 @@
   <div class="modal-content" (click)="$event.stopPropagation()">
     <div class="modal-header">
       <h3>{{ editingPayment ? 'Editar' : 'Nuevo' }} Pago</h3>
-      <button class="btn-close" (click)="closePaymentModal()">×</button>
+      <button class="btn-close" (click)="closePaymentModal()">
+        <mat-icon>close</mat-icon>
+      </button>
     </div>
     <form [formGroup]="paymentForm" (ngSubmit)="savePayment()">
       <div class="form-group">
@@ -575,7 +613,9 @@
   <div class="modal-content" (click)="$event.stopPropagation()">
     <div class="modal-header">
       <h3>{{ editingUser ? 'Editar' : 'Nuevo' }} Usuario</h3>
-      <button class="btn-close" (click)="showUserModal = false">×</button>
+      <button class="btn-close" (click)="showUserModal = false">
+        <mat-icon>close</mat-icon>
+      </button>
     </div>
     <form [formGroup]="userForm" (ngSubmit)="saveUser()">
       <div class="form-group" *ngIf="currentUser?.role === 'super_admin'">
@@ -622,7 +662,9 @@
   <div class="modal-content" (click)="$event.stopPropagation()">
     <div class="modal-header">
       <h3>Cambiar Contraseña</h3>
-      <button class="btn-close" (click)="closeChangePasswordModal()">×</button>
+      <button class="btn-close" (click)="closeChangePasswordModal()">
+        <mat-icon>close</mat-icon>
+      </button>
     </div>
     <form [formGroup]="changePasswordForm" (ngSubmit)="changePassword()">
       <div class="form-group">
@@ -658,7 +700,9 @@
   <div class="modal-content" (click)="$event.stopPropagation()">
     <div class="modal-header">
       <h3>{{ editingMarketExpense ? 'Editar' : 'Nuevo' }} Gasto de Mercado</h3>
-      <button class="btn-close" (click)="closeMarketExpenseModal()">×</button>
+      <button class="btn-close" (click)="closeMarketExpenseModal()">
+        <mat-icon>close</mat-icon>
+      </button>
     </div>
     <form [formGroup]="marketExpenseForm" (ngSubmit)="saveMarketExpense()">
       <div class="form-group">
@@ -707,7 +751,9 @@
   <div class="modal-content" (click)="$event.stopPropagation()">
     <div class="modal-header">
       <h3>{{ editingHouse ? 'Editar' : 'Nueva' }} Casa</h3>
-      <button class="btn-close" (click)="closeHouseModal()">×</button>
+      <button class="btn-close" (click)="closeHouseModal()">
+        <mat-icon>close</mat-icon>
+      </button>
     </div>
     <form [formGroup]="houseForm" (ngSubmit)="saveHouse()">
       <div class="form-group">
