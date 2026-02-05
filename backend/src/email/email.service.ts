@@ -20,9 +20,27 @@ export class EmailService {
   // MÉTODOS SÍNCRONOS (ORIGINALES)
   // ==========================================
 
-  async sendPaymentNotification(payment: Payment, users: User[]): Promise<void> {
-    try {
-      const emailPromises = users.map((user) =>
+// ==========================================
+// HELPER PRIVADO PARA DELAY
+// ==========================================
+private delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// ==========================================
+// MÉTODOS SYNC CON RATE LIMITING
+// ==========================================
+
+async sendPaymentNotification(payment: Payment, users: User[]): Promise<void> {
+  try {
+    // Procesar emails de 2 en 2 con pausa de 1 segundo entre lotes
+    const batchSize = 2;
+    const delayBetweenBatches = 1000; // 1 segundo
+
+    for (let i = 0; i < users.length; i += batchSize) {
+      const batch = users.slice(i, i + batchSize);
+      
+      const emailPromises = batch.map((user) =>
         this.resend.emails.send({
           from: this.fromEmail,
           to: user.email,
@@ -32,16 +50,30 @@ export class EmailService {
       );
 
       await Promise.all(emailPromises);
-      this.logger.log(`✅ Emails de pago enviados a ${users.length} usuarios`);
-    } catch (error) {
-      this.logger.error('❌ Error enviando emails de pago:', error);
-      throw error;
+      
+      // Solo agregar delay si hay más lotes por procesar
+      if (i + batchSize < users.length) {
+        await this.delay(delayBetweenBatches);
+      }
     }
-  }
 
-  async sendExpenseNotification(expense: MarketExpense, users: User[]): Promise<void> {
-    try {
-      const emailPromises = users.map((user) =>
+    this.logger.log(`✅ Emails de pago enviados a ${users.length} usuarios`);
+  } catch (error) {
+    this.logger.error('❌ Error enviando emails de pago:', error);
+    throw error;
+  }
+}
+
+async sendExpenseNotification(expense: MarketExpense, users: User[]): Promise<void> {
+  try {
+    // Procesar emails de 2 en 2 con pausa de 1 segundo entre lotes
+    const batchSize = 2;
+    const delayBetweenBatches = 1000; // 1 segundo
+
+    for (let i = 0; i < users.length; i += batchSize) {
+      const batch = users.slice(i, i + batchSize);
+      
+      const emailPromises = batch.map((user) =>
         this.resend.emails.send({
           from: this.fromEmail,
           to: user.email,
@@ -51,39 +83,45 @@ export class EmailService {
       );
 
       await Promise.all(emailPromises);
-      this.logger.log(`✅ Emails de gasto enviados a ${users.length} usuarios`);
-    } catch (error) {
-      this.logger.error('❌ Error enviando emails de gasto:', error);
-      throw error;
+      
+      // Solo agregar delay si hay más lotes por procesar
+      if (i + batchSize < users.length) {
+        await this.delay(delayBetweenBatches);
+      }
     }
+
+    this.logger.log(`✅ Emails de gasto enviados a ${users.length} usuarios`);
+  } catch (error) {
+    this.logger.error('❌ Error enviando emails de gasto:', error);
+    throw error;
   }
+}
 
-  // ==========================================
-  // MÉTODOS ASYNC (NO BLOQUEANTES)
-  // ==========================================
+// ==========================================
+// MÉTODOS ASYNC (NO BLOQUEANTES)
+// ==========================================
 
-  sendPaymentNotificationAsync(payment: Payment, users: User[]): void {
-    setImmediate(async () => {
-      try {
-        await this.sendPaymentNotification(payment, users);
-        this.logger.log(`📧 Email de pago procesado en background para ${users.length} usuarios`);
-      } catch (error) {
-        this.logger.error('❌ Error en envío async de email de pago:', error);
-      }
-    });
-  }
+sendPaymentNotificationAsync(payment: Payment, users: User[]): void {
+  setImmediate(async () => {
+    try {
+      await this.sendPaymentNotification(payment, users);
+      this.logger.log(`📧 Email de pago procesado en background para ${users.length} usuarios`);
+    } catch (error) {
+      this.logger.error('❌ Error en envío async de email de pago:', error);
+    }
+  });
+}
 
-  sendExpenseNotificationAsync(expense: MarketExpense, users: User[]): void {
-    setImmediate(async () => {
-      try {
-        await this.sendExpenseNotification(expense, users);
-        this.logger.log(`📧 Email de gasto procesado en background para ${users.length} usuarios`);
-      } catch (error) {
-        this.logger.error('❌ Error en envío async de email de gasto:', error);
-      }
-    });
-  }
-
+sendExpenseNotificationAsync(expense: MarketExpense, users: User[]): void {
+  setImmediate(async () => {
+    try {
+      await this.sendExpenseNotification(expense, users);
+      this.logger.log(`📧 Email de gasto procesado en background para ${users.length} usuarios`);
+    } catch (error) {
+      this.logger.error('❌ Error en envío async de email de gasto:', error);
+    }
+  });
+}
   // ==========================================
   // TEMPLATES HTML
   // ==========================================
