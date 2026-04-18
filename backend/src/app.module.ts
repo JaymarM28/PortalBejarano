@@ -16,6 +16,9 @@ import { Category } from './categories/category.entity';
 import { MarketExpense } from './market-expenses/market-expense.entity';
 import { LoggingInterceptor } from './common/logging.interceptor';
 import { HousesModule } from './houses/houses.module';
+import { IncomesModule } from './incomes/incomes.module';
+import { ReportsModule } from './reports/reports.module';
+import { Income } from './incomes/income.entity';
 
 @Module({
   imports: [
@@ -32,7 +35,7 @@ import { HousesModule } from './houses/houses.module';
       ssl: {
         rejectUnauthorized: false,
       },      
-      entities: [User, Employee, Payment, Category, MarketExpense],
+      entities: [User, Employee, Payment, Category, MarketExpense, Income],
       synchronize: true,
       logging: false,
       autoLoadEntities: true,
@@ -44,7 +47,9 @@ import { HousesModule } from './houses/houses.module';
     CategoriesModule,
     MarketExpensesModule,
     EmailModule,
-    HousesModule
+    HousesModule,
+    IncomesModule,
+    ReportsModule,
   ],
   providers: [
     {

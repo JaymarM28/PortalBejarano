@@ -108,6 +108,7 @@ export interface House {
   name: string;
   slug: string;
   description?: string | null;
+  numberOfPeople: number;
   isActive: boolean;
   stats?: HouseStats;
   users?: User;
@@ -117,4 +118,33 @@ export interface House {
   marketExpenses?: MarketExpense;
   createdAt: string;
   updatedAt: string;
+}
+
+export enum IncomeType {
+  SALARY = 'salary',
+  FREELANCE = 'freelance',
+  RENTAL = 'rental',
+  INVESTMENT = 'investment',
+  OTHER = 'other',
+}
+
+export const IncomeTypeLabels: Record<IncomeType, string> = {
+  [IncomeType.SALARY]: 'Salario',
+  [IncomeType.FREELANCE]: 'Freelance',
+  [IncomeType.RENTAL]: 'Alquiler',
+  [IncomeType.INVESTMENT]: 'Inversión',
+  [IncomeType.OTHER]: 'Otro',
+};
+
+export interface Income {
+  id: string;
+  amount: number;
+  description: string;
+  date: Date;
+  type: IncomeType;
+  notes?: string;
+  userId: string;
+  houseId: string;
+  createdAt: Date;
+  updatedAt: Date;
 }

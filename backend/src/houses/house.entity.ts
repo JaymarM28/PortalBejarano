@@ -19,6 +19,9 @@ export class House {
   @Column({ type: 'text', nullable: true })
   description: string;
 
+  @Column({ type: 'int', default: 1 })
+  numberOfPeople: number;
+
   @Column({ default: true })
   isActive: boolean;
 

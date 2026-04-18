@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -33,11 +34,22 @@ async function bootstrap() {
   // Prefijo global para API
   app.setGlobalPrefix('api');
 
+  // Swagger
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('Payroll System API')
+    .setDescription('API del sistema de nómina')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('api/docs', app, document);
+
   const port = configService.get<number>('PORT') || 3000;
   await app.listen(port);
-  
+
   console.log(`🚀 Backend corriendo en puerto ${port}`);
   console.log(`📝 API disponible en /api`);
+  console.log(`📖 Swagger disponible en /api/docs`);
   console.log(`🌐 CORS habilitado para: ${allowedOrigins.join(', ')}`);
 }
 

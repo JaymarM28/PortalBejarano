@@ -1,13 +1,18 @@
 import { Component, OnInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormsModule } from '@angular/forms';
+import { BaseChartDirective } from 'ng2-charts';
+import { Chart, ChartData, ChartOptions, registerables } from 'chart.js';
+Chart.register(...registerables);
 import { AuthService } from '../auth/auth.service';
 import { EmployeesService } from '../employees/employees.service';
 import { PaymentsService } from '../payments/payments.service';
 import { UsersService } from '../users/users.service';
 import { MarketExpensesService } from '../market-expenses/market-expenses.service';
 import { HousesService } from '../houses/houses.service';
-import { Employee, Payment, User, MarketExpense, MarketExpenseStats, House } from '../shared/models';
+import { IncomesService } from '../incomes/incomes.service';
+import { ReportsService } from '../reports/reports.service';
+import { Employee, Payment, User, MarketExpense, MarketExpenseStats, House, Income, IncomeType, IncomeTypeLabels } from '../shared/models';
 import { NotificationService } from '../shared/notification.service';
 import { NotificationsComponent } from '../shared/notifications.component';
 import { SkeletonComponent } from '../shared/skeleton.component';
@@ -17,7 +22,7 @@ import { MatIconModule } from '@angular/material/icon';
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, FormsModule, NotificationsComponent, SkeletonComponent, SignaturePadComponent, MatIconModule],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule, NotificationsComponent, SkeletonComponent, SignaturePadComponent, MatIconModule, BaseChartDirective],
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.css']
 })
@@ -36,6 +41,7 @@ export class DashboardComponent implements OnInit {
   users: User[] = [];
   marketExpenses: MarketExpense[] = [];
   houses: House[] = [];
+  incomes: Income[] = [];
 
   // Loading states
   loadingEmployees = false;
@@ -43,6 +49,58 @@ export class DashboardComponent implements OnInit {
   loadingUsers = false;
   loadingMarketExpenses = false;
   loadingHouses = false;
+  loadingIncomes = false;
+  loadingReport = false;
+
+  // Income types for template
+  incomeTypes = Object.values(IncomeType);
+  incomeTypeLabels = IncomeTypeLabels;
+
+  // Income filters
+  incomeFilterMonth = new Date().getMonth() + 1;
+  incomeFilterYear = new Date().getFullYear();
+  incomeSearchTerm = '';
+
+  // Income charts
+  incomeDoughnutData: ChartData<'doughnut'> = { labels: [], datasets: [] };
+  incomeBarData: ChartData<'bar'> = { labels: [], datasets: [] };
+  incomeDoughnutOptions: ChartOptions<'doughnut'> = {
+    responsive: true,
+    plugins: { legend: { position: 'right' } },
+  };
+  incomeBarOptions: ChartOptions<'bar'> = {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: { y: { beginAtZero: true } },
+  };
+
+  // Reports
+  reportData: any = null;
+  reportAnnual: any = null;
+  reportYear = new Date().getFullYear();
+  reportMonth = new Date().getMonth() + 1;
+  reportMode: 'monthly' | 'annual' = 'monthly';
+
+  // Chart data
+  doughnutData: ChartData<'doughnut'> = { labels: [], datasets: [] };
+  doughnutOptions: ChartOptions<'doughnut'> = {
+    responsive: true,
+    plugins: { legend: { position: 'bottom' } },
+  };
+  barData: ChartData<'bar'> = { labels: [], datasets: [] };
+  barOptions: ChartOptions<'bar'> = {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: { y: { beginAtZero: true } },
+  };
+  lineData: ChartData<'line'> = { labels: [], datasets: [] };
+  lineOptions: ChartOptions<'line'> = {
+    responsive: true,
+    plugins: { legend: { position: 'bottom' } },
+    scales: { y: { beginAtZero: true } },
+  };
+
+  readonly MONTH_NAMES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   
   // Filtros para pagos
   searchTerm = '';
@@ -127,6 +185,7 @@ export class DashboardComponent implements OnInit {
   changePasswordForm: FormGroup;
   marketExpenseForm: FormGroup;
   houseForm: FormGroup;
+  incomeForm: FormGroup;
   
   // UI states
   showEmployeeModal = false;
@@ -136,11 +195,13 @@ export class DashboardComponent implements OnInit {
   showSignatureModal = false;
   showMarketExpenseModal = false;
   showHouseModal = false;
+  showIncomeModal = false;
   editingEmployee: Employee | null = null;
   editingPayment: Payment | null = null;
   editingUser: User | null = null;
   editingMarketExpense: MarketExpense | null = null;
   editingHouse: House | null = null;
+  editingIncome: Income | null = null;
   paymentToSign: Payment | null = null;
   loading = false;
 
@@ -152,6 +213,8 @@ export class DashboardComponent implements OnInit {
     private usersService: UsersService,
     private marketExpensesService: MarketExpensesService,
     private housesService: HousesService,
+    private incomesService: IncomesService,
+    private reportsService: ReportsService,
     private notificationService: NotificationService
   ) {
     this.currentUser = this.authService.getCurrentUser();
@@ -202,7 +265,16 @@ export class DashboardComponent implements OnInit {
     this.houseForm = this.fb.group({
       name: ['', Validators.required],
       slug: ['', Validators.required],
-      description: ['']
+      description: [''],
+      numberOfPeople: [1, [Validators.required, Validators.min(1)]]
+    });
+
+    this.incomeForm = this.fb.group({
+      amount: [0, [Validators.required, Validators.min(0)]],
+      description: ['', Validators.required],
+      date: [new Date().toISOString().split('T')[0], Validators.required],
+      type: [IncomeType.SALARY],
+      notes: ['']
     });
   }
 
@@ -218,16 +290,15 @@ export class DashboardComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    // Cargar casas solo si es super_admin
     if (this.currentUser?.role === 'super_admin') {
       this.loadHouses();
     }
-    
     this.loadCurrentHouse();
     this.loadEmployees();
     this.loadPayments();
     this.loadMarketExpenses();
     this.loadUsers();
+    this.loadIncomes();
   }
 
   // ==========================================
@@ -388,7 +459,8 @@ export class DashboardComponent implements OnInit {
       this.houseForm.patchValue({
         name: house.name,
         slug: house.slug,
-        description: house.description
+        description: house.description,
+        numberOfPeople: house.numberOfPeople || 1
       });
     } else {
       this.editingHouse = null;
@@ -955,6 +1027,203 @@ openEmployeeModal(employee?: Employee): void {
         }
       });
     }
+  }
+
+  // ==========================================
+  // INCOME METHODS
+  // ==========================================
+
+  loadIncomes(): void {
+    this.loadingIncomes = true;
+    this.incomesService.getAll().subscribe({
+      next: (data) => { this.incomes = data; this.loadingIncomes = false; this.buildIncomeCharts(); },
+      error: () => { this.notificationService.error('Error al cargar ingresos'); this.loadingIncomes = false; }
+    });
+  }
+
+  openIncomeModal(income?: Income): void {
+    if (income) {
+      this.editingIncome = income;
+      this.incomeForm.patchValue({
+        amount: income.amount,
+        description: income.description,
+        date: income.date.toString().split('T')[0],
+        type: income.type,
+        notes: income.notes || ''
+      });
+    } else {
+      this.editingIncome = null;
+      this.incomeForm.reset({
+        date: new Date().toISOString().split('T')[0],
+        type: IncomeType.SALARY,
+        amount: 0
+      });
+    }
+    this.showIncomeModal = true;
+  }
+
+  closeIncomeModal(): void {
+    this.showIncomeModal = false;
+    this.editingIncome = null;
+    this.incomeForm.reset();
+  }
+
+  saveIncome(): void {
+    if (this.incomeForm.valid) {
+      this.loading = true;
+      const formData = { ...this.incomeForm.value, amount: Number(this.incomeForm.value.amount) };
+      const operation = this.editingIncome
+        ? this.incomesService.update(this.editingIncome.id, formData)
+        : this.incomesService.create(formData);
+
+      operation.subscribe({
+        next: () => {
+          this.notificationService.success(this.editingIncome ? 'Ingreso actualizado' : 'Ingreso registrado');
+          this.closeIncomeModal();
+          this.loadIncomes();
+          this.loading = false;
+        },
+        error: (err) => {
+          this.notificationService.error('Error: ' + (err.error?.message || 'Error desconocido'));
+          this.loading = false;
+        }
+      });
+    }
+  }
+
+  deleteIncome(id: string): void {
+    if (confirm('¿Estás seguro de eliminar este ingreso?')) {
+      this.incomesService.delete(id).subscribe({
+        next: () => { this.notificationService.success('Ingreso eliminado'); this.loadIncomes(); this.buildIncomeCharts(); },
+        error: () => this.notificationService.error('Error al eliminar ingreso')
+      });
+    }
+  }
+
+  get filteredIncomes(): Income[] {
+    return this.incomes.filter(i => {
+      const d = new Date(i.date);
+      const yearMatch = d.getFullYear() === this.incomeFilterYear;
+      const monthMatch = this.incomeFilterMonth === 0 || (d.getMonth() + 1) === this.incomeFilterMonth;
+      const searchMatch = !this.incomeSearchTerm ||
+        i.description.toLowerCase().includes(this.incomeSearchTerm.toLowerCase());
+      return yearMatch && monthMatch && searchMatch;
+    });
+  }
+
+  get totalIncomes(): number {
+    return this.filteredIncomes.reduce((s, i) => s + Number(i.amount), 0);
+  }
+
+  get avgIncome(): number {
+    return this.filteredIncomes.length ? this.totalIncomes / this.filteredIncomes.length : 0;
+  }
+
+  get maxIncome(): number {
+    return this.filteredIncomes.reduce((m, i) => Math.max(m, Number(i.amount)), 0);
+  }
+
+  getIncomeTypeLabel(type: string): string {
+    return this.incomeTypeLabels[type as IncomeType] || type;
+  }
+
+  onIncomeFilterChange(): void {
+    this.buildIncomeCharts();
+  }
+
+  private buildIncomeCharts(): void {
+    const data = this.filteredIncomes;
+
+    // Doughnut por tipo
+    const byType: Record<string, number> = {};
+    data.forEach(i => {
+      const label = this.getIncomeTypeLabel(i.type);
+      byType[label] = (byType[label] || 0) + Number(i.amount);
+    });
+    this.incomeDoughnutData = {
+      labels: Object.keys(byType),
+      datasets: [{ data: Object.values(byType), backgroundColor: ['#667eea','#11998e','#f5a623','#eb3349','#764ba2'], borderWidth: 2 }],
+    };
+
+    // Bar por mes (solo cuando se ve el año completo)
+    if (this.incomeFilterMonth === 0) {
+      const byMonth = Array(12).fill(0);
+      data.forEach(i => { byMonth[new Date(i.date).getMonth()] += Number(i.amount); });
+      this.incomeBarData = {
+        labels: this.MONTH_NAMES,
+        datasets: [{ data: byMonth, backgroundColor: '#667eea', borderRadius: 6 }],
+      };
+    }
+  }
+
+  // ==========================================
+  // REPORT METHODS
+  // ==========================================
+
+  loadReport(): void {
+    this.loadingReport = true;
+    if (this.reportMode === 'monthly') {
+      this.reportAnnual = null;
+      this.reportsService.getSummary(this.reportYear, this.reportMonth).subscribe({
+        next: (data) => {
+          this.reportData = data;
+          this.loadingReport = false;
+          this.buildMonthlyCharts(data);
+        },
+        error: () => { this.notificationService.error('Error al cargar informe'); this.loadingReport = false; }
+      });
+    } else {
+      this.reportData = null;
+      this.reportsService.getAnnual(this.reportYear).subscribe({
+        next: (data) => {
+          this.reportAnnual = data;
+          this.loadingReport = false;
+          this.buildAnnualCharts(data);
+        },
+        error: () => { this.notificationService.error('Error al cargar informe'); this.loadingReport = false; }
+      });
+    }
+  }
+
+  private buildMonthlyCharts(data: any): void {
+    const income = data.summary.totalIncome;
+    const payments = data.egress.payments.total;
+    const expenses = data.egress.expenses.total;
+
+    this.doughnutData = {
+      labels: ['Ingresos', 'Pagos empleadas', 'Gastos mercado'],
+      datasets: [{
+        data: [income, payments, expenses],
+        backgroundColor: ['#11998e', '#eb3349', '#f5a623'],
+        borderWidth: 2,
+      }],
+    };
+
+    const incomeTypes = data.incomes.byType as any[];
+    this.barData = {
+      labels: incomeTypes.map(t => this.getIncomeTypeLabel(t.type)),
+      datasets: [{
+        data: incomeTypes.map(t => t.total),
+        backgroundColor: '#667eea',
+        borderRadius: 6,
+      }],
+    };
+  }
+
+  private buildAnnualCharts(data: any): void {
+    const months = data.months as any[];
+    this.lineData = {
+      labels: this.MONTH_NAMES,
+      datasets: [
+        { label: 'Ingresos', data: months.map(m => m.totalIncome), borderColor: '#11998e', backgroundColor: 'rgba(17,153,142,0.1)', fill: true, tension: 0.4 },
+        { label: 'Pagos empleadas', data: months.map(m => m.totalPayments), borderColor: '#eb3349', backgroundColor: 'rgba(235,51,73,0.1)', fill: true, tension: 0.4 },
+        { label: 'Gastos mercado', data: months.map(m => m.totalExpenses), borderColor: '#f5a623', backgroundColor: 'rgba(245,166,35,0.1)', fill: true, tension: 0.4 },
+      ],
+    };
+  }
+
+  onReportTabActivated(): void {
+    this.loadReport();
   }
 
   // ==========================================

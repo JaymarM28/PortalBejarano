@@ -7,12 +7,14 @@ export interface CreateHouseDto {
   name: string;
   slug: string;
   description?: string;
+  numberOfPeople?: number;
 }
 
 export interface UpdateHouseDto {
   name?: string;
   slug?: string;
   description?: string;
+  numberOfPeople?: number;
   isActive?: boolean;
 }
 

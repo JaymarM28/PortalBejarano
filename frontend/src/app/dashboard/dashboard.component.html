@@ -47,26 +47,32 @@
         <span class="nav-text">Usuarios</span>
       </a>
       
-      <a 
+      <a
+        class="nav-item"
+        [class.active]="activeTab === 'incomes'"
+        (click)="setActiveTab('incomes')">
+        <mat-icon class="nav-icon">savings</mat-icon>
+        <span class="nav-text">Ingresos</span>
+      </a>
+
+      <a
+        class="nav-item"
+        [class.active]="activeTab === 'reports'"
+        (click)="setActiveTab('reports'); onReportTabActivated()">
+        <mat-icon class="nav-icon">bar_chart</mat-icon>
+        <span class="nav-text">Informes</span>
+      </a>
+
+      <a
         *ngIf="currentUser?.role === 'super_admin'"
-        class="nav-item" 
-        [class.active]="activeTab === 'houses'" 
+        class="nav-item"
+        [class.active]="activeTab === 'houses'"
         (click)="setActiveTab('houses')">
         <mat-icon class="nav-icon">apartment</mat-icon>
         <span class="nav-text">Casas</span>
       </a>
     </nav>
 
-    <div class="sidebar-footer">
-      <a class="nav-item" (click)="openChangePasswordModal()">
-        <mat-icon class="nav-icon">lock</mat-icon>
-        <span class="nav-text">Contraseña</span>
-      </a>
-      <a class="nav-item logout" (click)="logout()">
-        <mat-icon class="nav-icon">logout</mat-icon>
-        <span class="nav-text">Salir</span>
-      </a>
-    </div>
   </aside>
 
   <!-- Overlay para mobile -->
@@ -81,14 +87,20 @@
       </button>
       <div class="header-left">
         <h1>Sistema de Pagos</h1>
-        <small *ngIf="currentHouse">{{ currentHouse?.name }}</small>
+        <small *ngIf="currentHouse">{{ currentHouse.name }}</small>
       </div>
       <div class="user-info">
         <span class="user-name">{{ currentUser?.fullName }}</span>
         <span class="badge">
-          {{ currentUser?.role === 'super_admin' ? 'Super Admin' : 
+          {{ currentUser?.role === 'super_admin' ? 'Super Admin' :
              currentUser?.role === 'admin_house' ? 'Admin Casa' : 'Admin' }}
         </span>
+        <button class="btn-header-action" (click)="openChangePasswordModal()" title="Cambiar contraseña">
+          <mat-icon>lock</mat-icon>
+        </button>
+        <button class="btn-header-action btn-logout" (click)="logout()" title="Cerrar sesión">
+          <mat-icon>logout</mat-icon>
+        </button>
       </div>
     </header>
 
@@ -507,6 +519,338 @@
           <p>No hay casas registradas todavía</p>
         </div>
       </div>
+
+      <!-- Incomes Tab -->
+      <div *ngIf="activeTab === 'incomes'" class="tab-content income-tab">
+
+        <!-- Header -->
+        <div class="report-controls">
+          <div class="report-controls-left">
+            <h2 class="report-title">Mis Ingresos</h2>
+          </div>
+          <div class="report-controls-right">
+            <button class="btn-primary btn-sm-action" (click)="openIncomeModal()">
+              <mat-icon class="btn-icon-only">add</mat-icon>
+              <span class="btn-text">Nuevo Ingreso</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="income-filters">
+          <div class="input-with-icon income-search">
+            <mat-icon class="input-icon">search</mat-icon>
+            <input type="text" [(ngModel)]="incomeSearchTerm" (ngModelChange)="onIncomeFilterChange()"
+              placeholder="Buscar ingreso..." class="form-control">
+          </div>
+          <select class="form-control form-control-sm" [(ngModel)]="incomeFilterMonth" (ngModelChange)="onIncomeFilterChange()">
+            <option [value]="0">Todos los meses</option>
+            <option [value]="1">Enero</option><option [value]="2">Febrero</option>
+            <option [value]="3">Marzo</option><option [value]="4">Abril</option>
+            <option [value]="5">Mayo</option><option [value]="6">Junio</option>
+            <option [value]="7">Julio</option><option [value]="8">Agosto</option>
+            <option [value]="9">Septiembre</option><option [value]="10">Octubre</option>
+            <option [value]="11">Noviembre</option><option [value]="12">Diciembre</option>
+          </select>
+          <input type="number" class="form-control form-control-sm" [(ngModel)]="incomeFilterYear"
+            (ngModelChange)="onIncomeFilterChange()" min="2020" max="2099" style="width:90px">
+          <button class="btn-secondary btn-sm-action" (click)="incomeSearchTerm=''; incomeFilterMonth=0; onIncomeFilterChange()">
+            <mat-icon class="btn-icon-only">clear</mat-icon> Limpiar
+          </button>
+        </div>
+
+        <app-skeleton [loading]="loadingIncomes" [type]="'employee-card'"></app-skeleton>
+
+        <ng-container *ngIf="!loadingIncomes">
+
+          <!-- KPIs -->
+          <div class="kpi-row" *ngIf="filteredIncomes.length > 0">
+            <div class="kpi income">
+              <div class="kpi-icon"><mat-icon>savings</mat-icon></div>
+              <div class="kpi-info">
+                <span class="kpi-label">Total período</span>
+                <span class="kpi-value">${{ totalIncomes | number:'1.0-0' }}</span>
+              </div>
+            </div>
+            <div class="kpi neutral">
+              <div class="kpi-icon"><mat-icon>receipt_long</mat-icon></div>
+              <div class="kpi-info">
+                <span class="kpi-label">Registros</span>
+                <span class="kpi-value">{{ filteredIncomes.length }}</span>
+              </div>
+            </div>
+            <div class="kpi neutral">
+              <div class="kpi-icon"><mat-icon>show_chart</mat-icon></div>
+              <div class="kpi-info">
+                <span class="kpi-label">Promedio</span>
+                <span class="kpi-value">${{ avgIncome | number:'1.0-0' }}</span>
+              </div>
+            </div>
+            <div class="kpi income">
+              <div class="kpi-icon"><mat-icon>emoji_events</mat-icon></div>
+              <div class="kpi-info">
+                <span class="kpi-label">Mayor ingreso</span>
+                <span class="kpi-value">${{ maxIncome | number:'1.0-0' }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Gráficas -->
+          <div class="report-grid" *ngIf="filteredIncomes.length > 0">
+            <div class="report-panel">
+              <h4 class="panel-title">Distribución por tipo</h4>
+              <div class="chart-wrap">
+                <canvas baseChart [data]="incomeDoughnutData" [type]="'doughnut'" [options]="incomeDoughnutOptions"></canvas>
+              </div>
+            </div>
+            <div class="report-panel" *ngIf="incomeFilterMonth === 0">
+              <h4 class="panel-title">Ingresos por mes — {{ incomeFilterYear }}</h4>
+              <div class="chart-wrap chart-wrap-bar">
+                <canvas baseChart [data]="incomeBarData" [type]="'bar'" [options]="incomeBarOptions"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tabla de registros -->
+          <div class="report-panel report-panel-full mt-12" *ngIf="filteredIncomes.length > 0">
+            <div class="income-table-header">
+              <h4 class="panel-title" style="margin:0">Detalle de ingresos</h4>
+            </div>
+            <div class="table-container">
+              <table class="data-table report-table">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Descripción</th>
+                    <th>Tipo</th>
+                    <th>Notas</th>
+                    <th class="text-right income-col">Monto</th>
+                    <th class="text-right">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let income of filteredIncomes">
+                    <td class="td-date">{{ income.date | date:'dd/MM/yyyy' }}</td>
+                    <td class="td-desc">{{ income.description }}</td>
+                    <td>
+                      <span class="type-badge type-{{ income.type }}">{{ getIncomeTypeLabel(income.type) }}</span>
+                    </td>
+                    <td class="td-notes">{{ income.notes || '—' }}</td>
+                    <td class="text-right income-col font-bold">${{ income.amount | number:'1.0-0' }}</td>
+                    <td class="text-right td-actions">
+                      <button class="btn-icon-table" (click)="openIncomeModal(income)" title="Editar">
+                        <mat-icon>edit</mat-icon>
+                      </button>
+                      <button class="btn-icon-table btn-icon-danger" (click)="deleteIncome(income.id)" title="Eliminar">
+                        <mat-icon>delete</mat-icon>
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td colspan="4" class="tfoot-label">Total</td>
+                    <td class="text-right income-col font-bold">${{ totalIncomes | number:'1.0-0' }}</td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+
+          <!-- Empty -->
+          <div class="empty-state" *ngIf="filteredIncomes.length === 0 && incomes.length > 0">
+            <mat-icon class="empty-icon">search_off</mat-icon>
+            <p>Sin resultados para el filtro seleccionado</p>
+          </div>
+          <div class="empty-state" *ngIf="incomes.length === 0">
+            <mat-icon class="empty-icon">savings</mat-icon>
+            <p>No hay ingresos registrados todavía</p>
+            <button class="btn-primary" (click)="openIncomeModal()">Registrar primer ingreso</button>
+          </div>
+
+        </ng-container>
+      </div>
+
+      <!-- Reports Tab -->
+      <div *ngIf="activeTab === 'reports'" class="tab-content report-tab">
+
+        <!-- Barra de controles compacta -->
+        <div class="report-controls">
+          <div class="report-controls-left">
+            <h2 class="report-title">Informe Ingresos vs Egresos</h2>
+          </div>
+          <div class="report-controls-right">
+            <div class="control-group">
+              <select class="form-control form-control-sm" [(ngModel)]="reportMode">
+                <option value="monthly">Mensual</option>
+                <option value="annual">Anual</option>
+              </select>
+            </div>
+            <div class="control-group" *ngIf="reportMode === 'monthly'">
+              <select class="form-control form-control-sm" [(ngModel)]="reportMonth">
+                <option [value]="1">Enero</option><option [value]="2">Febrero</option>
+                <option [value]="3">Marzo</option><option [value]="4">Abril</option>
+                <option [value]="5">Mayo</option><option [value]="6">Junio</option>
+                <option [value]="7">Julio</option><option [value]="8">Agosto</option>
+                <option [value]="9">Septiembre</option><option [value]="10">Octubre</option>
+                <option [value]="11">Noviembre</option><option [value]="12">Diciembre</option>
+              </select>
+            </div>
+            <div class="control-group">
+              <input type="number" class="form-control form-control-sm" [(ngModel)]="reportYear" min="2020" max="2099" style="width:90px">
+            </div>
+            <button class="btn-primary btn-sm-action" (click)="loadReport()" [disabled]="loadingReport">
+              <mat-icon class="btn-icon-only">refresh</mat-icon>
+              {{ loadingReport ? 'Cargando...' : 'Generar' }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Loading -->
+        <div class="report-loading" *ngIf="loadingReport">
+          <mat-icon class="spin-icon">refresh</mat-icon> Generando informe...
+        </div>
+
+        <!-- ===== INFORME MENSUAL ===== -->
+        <ng-container *ngIf="!loadingReport && reportMode === 'monthly' && reportData">
+
+          <!-- KPI row compacta -->
+          <div class="kpi-row">
+            <div class="kpi income">
+              <div class="kpi-icon"><mat-icon>trending_up</mat-icon></div>
+              <div class="kpi-info">
+                <span class="kpi-label">Mis ingresos</span>
+                <span class="kpi-value">${{ reportData.summary.totalIncome | number:'1.0-0' }}</span>
+              </div>
+            </div>
+            <div class="kpi danger">
+              <div class="kpi-icon"><mat-icon>trending_down</mat-icon></div>
+              <div class="kpi-info">
+                <span class="kpi-label">Egresos casa</span>
+                <span class="kpi-value">${{ reportData.summary.totalEgress | number:'1.0-0' }}</span>
+              </div>
+            </div>
+            <div class="kpi" [class.income]="reportData.summary.balance >= 0" [class.danger]="reportData.summary.balance < 0">
+              <div class="kpi-icon"><mat-icon>account_balance</mat-icon></div>
+              <div class="kpi-info">
+                <span class="kpi-label">Balance</span>
+                <span class="kpi-value">${{ reportData.summary.balance | number:'1.0-0' }}</span>
+              </div>
+            </div>
+            <div class="kpi neutral">
+              <div class="kpi-icon"><mat-icon>people</mat-icon></div>
+              <div class="kpi-info">
+                <span class="kpi-label">Balance / persona</span>
+                <span class="kpi-value">${{ reportData.summary.balancePerPerson | number:'1.0-0' }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Gráficas + detalles -->
+          <div class="report-grid">
+
+            <!-- Doughnut: distribución -->
+            <div class="report-panel">
+              <h4 class="panel-title">Distribución del período</h4>
+              <div class="chart-wrap">
+                <canvas baseChart [data]="doughnutData" [type]="'doughnut'" [options]="doughnutOptions"></canvas>
+              </div>
+            </div>
+
+            <!-- Detalles compactos -->
+            <div class="report-panel">
+              <h4 class="panel-title">Detalle de egresos</h4>
+              <div class="detail-section">
+                <div class="detail-header">
+                  <span>Pagos a empleadas</span>
+                  <span class="badge-amount danger-text">${{ reportData.egress.payments.total | number:'1.0-0' }}</span>
+                </div>
+                <div *ngFor="let ep of reportData.egress.payments.byEmployee" class="detail-line">
+                  <span class="dot" style="background:#eb3349"></span>
+                  <span class="detail-name">{{ ep.employee }}</span>
+                  <span class="detail-amount">${{ ep.total | number:'1.0-0' }}</span>
+                </div>
+                <div class="detail-empty" *ngIf="reportData.egress.payments.count === 0">Sin pagos este mes</div>
+              </div>
+              <div class="detail-section mt-8">
+                <div class="detail-header">
+                  <span>Gastos de mercado</span>
+                  <span class="badge-amount danger-text">${{ reportData.egress.expenses.total | number:'1.0-0' }}</span>
+                </div>
+                <div class="detail-line">
+                  <span class="dot" style="background:#f5a623"></span>
+                  <span class="detail-name">{{ reportData.egress.expenses.count }} registro(s)</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Bar: ingresos por tipo -->
+            <div class="report-panel panel-wide">
+              <h4 class="panel-title">Mis ingresos por tipo</h4>
+              <div *ngIf="reportData.incomes.byType.length > 0; else noIncomeTypes">
+                <div class="chart-wrap chart-wrap-bar">
+                  <canvas baseChart [data]="barData" [type]="'bar'" [options]="barOptions"></canvas>
+                </div>
+              </div>
+              <ng-template #noIncomeTypes>
+                <p class="no-data-msg">Sin ingresos registrados en este período</p>
+              </ng-template>
+            </div>
+
+          </div>
+        </ng-container>
+
+        <!-- ===== INFORME ANUAL ===== -->
+        <ng-container *ngIf="!loadingReport && reportMode === 'annual' && reportAnnual">
+
+          <!-- Gráfica de líneas anual -->
+          <div class="report-panel report-panel-full">
+            <h4 class="panel-title">Evolución anual {{ reportAnnual.year }}</h4>
+            <div class="chart-wrap chart-wrap-line">
+              <canvas baseChart [data]="lineData" [type]="'line'" [options]="lineOptions"></canvas>
+            </div>
+          </div>
+
+          <!-- Tabla compacta -->
+          <div class="report-panel report-panel-full mt-12">
+            <h4 class="panel-title">Resumen mensual</h4>
+            <div class="table-container">
+              <table class="data-table report-table">
+                <thead>
+                  <tr>
+                    <th>Mes</th>
+                    <th class="text-right income-col">Ingresos</th>
+                    <th class="text-right">Pagos empl.</th>
+                    <th class="text-right">Gastos mercado</th>
+                    <th class="text-right">Balance</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let m of reportAnnual.months">
+                    <td>{{ MONTH_NAMES[m.month - 1] }}</td>
+                    <td class="text-right income-col">${{ m.totalIncome | number:'1.0-0' }}</td>
+                    <td class="text-right">${{ m.totalPayments | number:'1.0-0' }}</td>
+                    <td class="text-right">${{ m.totalExpenses | number:'1.0-0' }}</td>
+                    <td class="text-right"
+                        [class.text-success]="m.totalIncome - m.totalPayments - m.totalExpenses >= 0"
+                        [class.text-danger]="m.totalIncome - m.totalPayments - m.totalExpenses < 0">
+                      ${{ (m.totalIncome - m.totalPayments - m.totalExpenses) | number:'1.0-0' }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </ng-container>
+
+        <!-- Empty state -->
+        <div class="empty-state" *ngIf="!loadingReport && !reportData && !reportAnnual">
+          <mat-icon class="empty-icon">insert_chart</mat-icon>
+          <p>Selecciona el período y haz clic en Generar</p>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -769,9 +1113,56 @@
         <label>Descripción</label>
         <textarea formControlName="description" class="form-control" rows="3" placeholder="Descripción opcional..."></textarea>
       </div>
+      <div class="form-group">
+        <label>Número de personas *</label>
+        <input type="number" formControlName="numberOfPeople" class="form-control" min="1" placeholder="1">
+        <small class="form-hint">Cantidad de personas que viven en esta casa</small>
+      </div>
       <div class="modal-actions">
         <button type="button" class="btn-secondary" (click)="closeHouseModal()">Cancelar</button>
         <button type="submit" class="btn-primary" [disabled]="houseForm.invalid || loading">
+          {{ loading ? 'Guardando...' : 'Guardar' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Income Modal -->
+<div class="modal" *ngIf="showIncomeModal" (click)="closeIncomeModal()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>{{ editingIncome ? 'Editar' : 'Nuevo' }} Ingreso</h3>
+      <button class="btn-close" (click)="closeIncomeModal()">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+    <form [formGroup]="incomeForm" (ngSubmit)="saveIncome()">
+      <div class="form-group">
+        <label>Descripción *</label>
+        <input type="text" formControlName="description" class="form-control" placeholder="Ej: Salario enero">
+      </div>
+      <div class="form-group">
+        <label>Monto * ($)</label>
+        <input type="number" formControlName="amount" class="form-control" min="0" step="0.01" placeholder="0.00">
+      </div>
+      <div class="form-group">
+        <label>Fecha *</label>
+        <input type="date" formControlName="date" class="form-control">
+      </div>
+      <div class="form-group">
+        <label>Tipo</label>
+        <select formControlName="type" class="form-control">
+          <option *ngFor="let t of incomeTypes" [value]="t">{{ incomeTypeLabels[t] }}</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Notas</label>
+        <textarea formControlName="notes" class="form-control" rows="3" placeholder="Detalles adicionales..."></textarea>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" (click)="closeIncomeModal()">Cancelar</button>
+        <button type="submit" class="btn-primary" [disabled]="incomeForm.invalid || loading">
           {{ loading ? 'Guardando...' : 'Guardar' }}
         </button>
       </div>

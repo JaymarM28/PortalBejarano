@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsBoolean, Matches } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsBoolean, IsInt, Min, Matches } from 'class-validator';
 
 export class CreateHouseDto {
   @IsString()
@@ -15,6 +15,11 @@ export class CreateHouseDto {
   @IsString()
   @IsOptional()
   description?: string;
+
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  numberOfPeople?: number;
 
   @IsBoolean()
   @IsOptional()
@@ -36,6 +41,11 @@ export class UpdateHouseDto {
   @IsString()
   @IsOptional()
   description?: string;
+
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  numberOfPeople?: number;
 
   @IsBoolean()
   @IsOptional()
