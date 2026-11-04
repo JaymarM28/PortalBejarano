@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
+import { resolveHouseScope } from '../common/house-scope';
 import { IncomesService } from './incomes.service';
 import { CreateIncomeDto, UpdateIncomeDto } from './dto/income.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -10,17 +11,17 @@ export class IncomesController {
 
   @Post()
   create(@Body() dto: CreateIncomeDto, @Request() req) {
-    return this.incomesService.create(dto, req.user.userId, req.user.houseId);
+    return this.incomesService.create(dto, req.user.userId, resolveHouseScope(req.user));
   }
 
   @Get()
   findAll(@Request() req) {
-    return this.incomesService.findAll(req.user.userId, req.user.houseId);
+    return this.incomesService.findAll(req.user.userId, resolveHouseScope(req.user));
   }
 
   @Get('stats/month')
   getStatsByMonth(@Query('year') year: number, @Query('month') month: number, @Request() req) {
-    return this.incomesService.getStatsByMonth(Number(year), Number(month), req.user.userId, req.user.houseId);
+    return this.incomesService.getStatsByMonth(Number(year), Number(month), req.user.userId, resolveHouseScope(req.user));
   }
 
   @Get(':id')

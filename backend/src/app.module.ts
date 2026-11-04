@@ -32,11 +32,16 @@ import { Income } from './incomes/income.entity';
       username: process.env.DB_USERNAME || 'postgres',
       password: process.env.DB_PASSWORD || 'postgres',
       database: process.env.DB_NAME || 'payroll_db',
-      ssl: {
-        rejectUnauthorized: false,
-      },      
+      // SSL activo por defecto (Neon lo exige). DB_SSL=false lo desactiva (BD local);
+      // DB_SSL_REJECT_UNAUTHORIZED=true activa la verificación del certificado.
+      ssl:
+        process.env.DB_SSL === 'false'
+          ? false
+          : { rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED === 'true' },
       entities: [User, Employee, Payment, Category, MarketExpense, Income],
-      synchronize: true,
+      // Antes era `true` fijo: TypeORM alteraba el esquema de producción en cada arranque.
+      // Ahora solo se sincroniza si se pide explícitamente con DB_SYNCHRONIZE=true.
+      synchronize: process.env.DB_SYNCHRONIZE === 'true',
       logging: false,
       autoLoadEntities: true,
     }),

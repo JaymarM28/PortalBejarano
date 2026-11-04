@@ -31,37 +31,62 @@ private delay(ms: number): Promise<void> {
 // MÉTODOS SYNC CON RATE LIMITING
 // ==========================================
 
-async sendPaymentNotification(payment: Payment, users: User[]): Promise<void> {
-  try {
-    // Procesar emails de 2 en 2 con pausa de 1 segundo entre lotes
-    const batchSize = 2;
-    const delayBetweenBatches = 1000; // 1 segundo
-
-    for (let i = 0; i < users.length; i += batchSize) {
-      const batch = users.slice(i, i + batchSize);
-      
-      const emailPromises = batch.map((user) =>
-        this.resend.emails.send({
-          from: this.fromEmail,
-          to: user.email,
-          subject: `Pago Registrado - ${payment.employee.fullName}`,
-          html: this.getPaymentEmailHtml(payment, user),
-        })
-      );
-
-      await Promise.all(emailPromises);
-      
-      // Solo agregar delay si hay más lotes por procesar
-      if (i + batchSize < users.length) {
-        await this.delay(delayBetweenBatches);
-      }
+/**
+ * Envía el comprobante de pago firmado, con el PDF adjunto, a los usuarios de la casa
+ * y al trabajador (si tiene email). Los envíos se hacen de 2 en 2 con 1 s de pausa
+ * por el límite de tasa de Resend. Un destinatario que falla no detiene al resto.
+ */
+async sendPaymentSignedNotification(payment: Payment, users: User[], pdf: Buffer): Promise<void> {
+  const recipients = new Map<string, { email: string; name: string; isWorker: boolean }>();
+  for (const user of users) {
+    if (user.email) {
+      recipients.set(user.email.toLowerCase(), { email: user.email, name: user.fullName, isWorker: false });
     }
-
-    this.logger.log(`✅ Emails de pago enviados a ${users.length} usuarios`);
-  } catch (error) {
-    this.logger.error('❌ Error enviando emails de pago:', error);
-    throw error;
   }
+  const workerEmail = payment.employee?.email?.trim();
+  if (workerEmail) {
+    recipients.set(workerEmail.toLowerCase(), {
+      email: workerEmail,
+      name: payment.employee.fullName,
+      isWorker: true,
+    });
+  }
+
+  const list = [...recipients.values()];
+  const filename = `comprobante-${payment.employee.fullName.replace(/[^\p{L}\p{N}]+/gu, '-')}-${String(payment.paymentDate).slice(0, 10)}.pdf`;
+  const batchSize = 2;
+  const delayBetweenBatches = 1000;
+  let failed = 0;
+
+  for (let i = 0; i < list.length; i += batchSize) {
+    const batch = list.slice(i, i + batchSize);
+
+    const results = await Promise.allSettled(
+      batch.map(async (r) => {
+        const { error } = await this.resend.emails.send({
+          from: this.fromEmail,
+          to: r.email,
+          subject: `Comprobante de pago firmado - ${payment.employee.fullName}`,
+          html: this.getPaymentEmailHtml(payment, r.name, r.isWorker),
+          attachments: [{ filename, content: pdf }],
+        });
+        if (error) throw new Error(error.message);
+      }),
+    );
+
+    results.forEach((res, idx) => {
+      if (res.status === 'rejected') {
+        failed++;
+        this.logger.error(`❌ No se pudo enviar el comprobante a ${batch[idx].email}: ${res.reason?.message}`);
+      }
+    });
+
+    if (i + batchSize < list.length) {
+      await this.delay(delayBetweenBatches);
+    }
+  }
+
+  this.logger.log(`✅ Comprobante del pago ${payment.id} enviado a ${list.length - failed}/${list.length} destinatarios`);
 }
 
 async sendExpenseNotification(expense: MarketExpense, users: User[]): Promise<void> {
@@ -101,17 +126,6 @@ async sendExpenseNotification(expense: MarketExpense, users: User[]): Promise<vo
 // MÉTODOS ASYNC (NO BLOQUEANTES)
 // ==========================================
 
-sendPaymentNotificationAsync(payment: Payment, users: User[]): void {
-  setImmediate(async () => {
-    try {
-      await this.sendPaymentNotification(payment, users);
-      this.logger.log(`📧 Email de pago procesado en background para ${users.length} usuarios`);
-    } catch (error) {
-      this.logger.error('❌ Error en envío async de email de pago:', error);
-    }
-  });
-}
-
 sendExpenseNotificationAsync(expense: MarketExpense, users: User[]): void {
   setImmediate(async () => {
     try {
@@ -126,7 +140,11 @@ sendExpenseNotificationAsync(expense: MarketExpense, users: User[]): void {
   // TEMPLATES HTML
   // ==========================================
 
-  private getPaymentEmailHtml(payment: Payment, user: User): string {
+  private getPaymentEmailHtml(payment: Payment, recipientName: string, isWorker: boolean): string {
+    const intro = isWorker
+      ? `Hola <strong>${this.escape(recipientName)}</strong>, tu comprobante de pago fue firmado. Lo encontrarás adjunto en PDF.`
+      : `Hola <strong>${this.escape(recipientName)}</strong>, se firmó el siguiente comprobante de pago. Encontrarás el PDF adjunto.`;
+
     const bonusesHtml = payment.bonuses ? `
       <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px dashed #e2e8f0;">
         <span style="font-size: 14px; color: #4a5568;">Bonificaciones</span>
@@ -146,7 +164,7 @@ sendExpenseNotificationAsync(expense: MarketExpense, users: User[]): void {
         <div style="width: 36px; height: 36px; background-color: #fef3c7; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 15px; font-size: 16px; flex-shrink: 0;">📝</div>
         <div style="flex: 1;">
           <div style="font-size: 12px; font-weight: 600; color: #92400e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px;">Notas</div>
-          <div style="font-size: 14px; color: #78350f;">${payment.notes}</div>
+          <div style="font-size: 14px; color: #78350f;">${this.escape(payment.notes)}</div>
         </div>
       </div>
     ` : '';
@@ -157,31 +175,31 @@ sendExpenseNotificationAsync(expense: MarketExpense, users: User[]): void {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Nuevo Pago Registrado</title>
+  <title>Comprobante de Pago Firmado</title>
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #2d3748; background-color: #edf2f7; margin: 0; padding: 40px 20px;">
   <div style="max-width: 560px; margin: 0 auto; background-color: white; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.08);">
     
     <!-- Header -->
     <div style="background-color: #1a365d; color: white; padding: 40px 30px; text-align: center;">
-      <h1 style="margin: 0; font-size: 22px; font-weight: 600;">Nuevo Pago Registrado</h1>
+      <h1 style="margin: 0; font-size: 22px; font-weight: 600;">Comprobante de Pago Firmado</h1>
       <p style="margin: 8px 0 0; opacity: 0.8; font-size: 14px;">Notificación del Sistema</p>
     </div>
     
     <!-- Content -->
     <div style="padding: 30px 35px 35px;">
-      <p style="font-size: 15px; color: #4a5568; margin-bottom: 25px;">Se ha registrado un nuevo pago en el sistema:</p>
+      <p style="font-size: 15px; color: #4a5568; margin-bottom: 25px;">${intro}</p>
       
       <!-- Info del Pago -->
       <div style="margin: 25px 0;">
         <div style="font-size: 13px; font-weight: 600; color: #1a365d; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0;">📋 Información del Pago</div>
         
-        <!-- Empleada -->
+        <!-- Trabajador -->
         <div style="display: flex; align-items: flex-start; padding: 14px 0; border-bottom: 1px solid #e2e8f0;">
-          <div style="width: 36px; height: 36px; background-color: #ebf4ff; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 15px; font-size: 16px; flex-shrink: 0;">👩</div>
+          <div style="width: 36px; height: 36px; background-color: #ebf4ff; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 15px; font-size: 16px; flex-shrink: 0;">👤</div>
           <div style="flex: 1;">
-            <div style="font-size: 12px; color: #718096; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Empleada</div>
-            <div style="font-size: 15px; color: #2d3748; font-weight: 500;">${payment.employee.fullName}</div>
+            <div style="font-size: 12px; color: #718096; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Trabajador</div>
+            <div style="font-size: 15px; color: #2d3748; font-weight: 500;">${this.escape(payment.employee.fullName)}</div>
           </div>
         </div>
         
@@ -193,13 +211,22 @@ sendExpenseNotificationAsync(expense: MarketExpense, users: User[]): void {
             <div style="font-size: 15px; color: #2d3748; font-weight: 500;">${this.formatDate(payment.paymentDate)}</div>
           </div>
         </div>
+
+        <!-- Fecha de firma -->
+        <div style="display: flex; align-items: flex-start; padding: 14px 0; border-bottom: 1px solid #e2e8f0;">
+          <div style="width: 36px; height: 36px; background-color: #ebf4ff; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 15px; font-size: 16px; flex-shrink: 0;">✍️</div>
+          <div style="flex: 1;">
+            <div style="font-size: 12px; color: #718096; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Firmado el</div>
+            <div style="font-size: 15px; color: #2d3748; font-weight: 500;">${this.formatDateTime(payment.signedAt)}</div>
+          </div>
+        </div>
         
         <!-- Empleador -->
         <div style="display: flex; align-items: flex-start; padding: 14px 0;">
           <div style="width: 36px; height: 36px; background-color: #ebf4ff; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 15px; font-size: 16px; flex-shrink: 0;">🏢</div>
           <div style="flex: 1;">
             <div style="font-size: 12px; color: #718096; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Empleador</div>
-            <div style="font-size: 15px; color: #2d3748; font-weight: 500;">${payment.employer.fullName}</div>
+            <div style="font-size: 15px; color: #2d3748; font-weight: 500;">${this.escape(payment.employer.fullName)}</div>
           </div>
         </div>
       </div>
@@ -243,7 +270,7 @@ sendExpenseNotificationAsync(expense: MarketExpense, users: User[]): void {
         <div style="width: 36px; height: 36px; background-color: #ebf4ff; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 15px; font-size: 16px; flex-shrink: 0;">📝</div>
         <div style="flex: 1;">
           <div style="font-size: 12px; color: #718096; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Notas</div>
-          <div style="font-size: 15px; color: #2d3748; font-weight: 500;">${expense.notes}</div>
+          <div style="font-size: 15px; color: #2d3748; font-weight: 500;">${this.escape(expense.notes)}</div>
         </div>
       </div>
     ` : '';
@@ -267,7 +294,7 @@ sendExpenseNotificationAsync(expense: MarketExpense, users: User[]): void {
     
     <!-- Content -->
     <div style="padding: 30px 35px 35px;">
-      <p style="font-size: 15px; color: #4a5568; margin-bottom: 25px;">Hola <strong>${user.fullName}</strong>, se ha registrado un nuevo gasto:</p>
+      <p style="font-size: 15px; color: #4a5568; margin-bottom: 25px;">Hola <strong>${this.escape(user.fullName)}</strong>, se ha registrado un nuevo gasto:</p>
       
       <!-- Info del Gasto -->
       <div style="margin: 25px 0;">
@@ -277,7 +304,7 @@ sendExpenseNotificationAsync(expense: MarketExpense, users: User[]): void {
           <div style="width: 36px; height: 36px; background-color: #ebf4ff; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 15px; font-size: 16px; flex-shrink: 0;">🏪</div>
           <div style="flex: 1;">
             <div style="font-size: 12px; color: #718096; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Lugar</div>
-            <div style="font-size: 15px; color: #2d3748; font-weight: 500;">${expense.place}</div>
+            <div style="font-size: 15px; color: #2d3748; font-weight: 500;">${this.escape(expense.place)}</div>
           </div>
         </div>
         
@@ -286,7 +313,7 @@ sendExpenseNotificationAsync(expense: MarketExpense, users: User[]): void {
           <div style="width: 36px; height: 36px; background-color: #ebf4ff; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 15px; font-size: 16px; flex-shrink: 0;">👤</div>
           <div style="flex: 1;">
             <div style="font-size: 12px; color: #718096; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Responsable</div>
-            <div style="font-size: 15px; color: #2d3748; font-weight: 500;">${expense.responsible.fullName}</div>
+            <div style="font-size: 15px; color: #2d3748; font-weight: 500;">${this.escape(expense.responsible?.fullName)}</div>
           </div>
         </div>
         
@@ -305,7 +332,7 @@ sendExpenseNotificationAsync(expense: MarketExpense, users: User[]): void {
           <div style="flex: 1;">
             <div style="font-size: 12px; color: #718096; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Categoría</div>
             <div style="font-size: 15px; color: #2d3748; font-weight: 500;">
-              <span style="display: inline-block; padding: 5px 14px; border-radius: 20px; font-size: 13px; font-weight: 500; background-color: #e6fffa; color: #047857;">${expense.category || 'Sin categoría'}</span>
+              <span style="display: inline-block; padding: 5px 14px; border-radius: 20px; font-size: 13px; font-weight: 500; background-color: #e6fffa; color: #047857;">${this.escape(expense.category || 'Sin categoría')}</span>
             </div>
           </div>
         </div>
@@ -317,7 +344,7 @@ sendExpenseNotificationAsync(expense: MarketExpense, users: User[]): void {
           <div style="width: 36px; height: 36px; background-color: #ebf4ff; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 15px; font-size: 16px; flex-shrink: 0;">✍️</div>
           <div style="flex: 1;">
             <div style="font-size: 12px; color: #718096; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Registrado por</div>
-            <div style="font-size: 15px; color: #2d3748; font-weight: 500;">${expense.createdBy.fullName}</div>
+            <div style="font-size: 15px; color: #2d3748; font-weight: 500;">${this.escape(expense.createdBy?.fullName)}</div>
           </div>
         </div>
       </div>
@@ -348,6 +375,16 @@ sendExpenseNotificationAsync(expense: MarketExpense, users: User[]): void {
   // ==========================================
   // HELPERS
   // ==========================================
+
+  /** Escapa texto ingresado por usuarios antes de insertarlo en el HTML del correo. */
+  private escape(value: unknown): string {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
 
   private formatDate(date: Date): string {
     return new Date(date).toLocaleDateString('es-CO', {

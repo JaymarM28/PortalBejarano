@@ -1,7 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from './auth.service';
 
 @Component({
@@ -11,15 +11,17 @@ import { AuthService } from './auth.service';
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.css']
 })
-export class LoginComponent {
+export class LoginComponent implements OnInit {
   loginForm: FormGroup;
   loading = false;
   error = '';
+  sessionExpired = false;
 
   constructor(
     private fb: FormBuilder,
     private authService: AuthService,
-    private router: Router
+    private router: Router,
+    private route: ActivatedRoute
   ) {
     this.loginForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
@@ -27,14 +29,27 @@ export class LoginComponent {
     });
   }
 
+  ngOnInit(): void {
+    this.sessionExpired = this.route.snapshot.queryParamMap.has('expired');
+
+    // Si ya hay una sesión vigente no tiene sentido mostrar el login
+    if (this.authService.isAuthenticated()) {
+      this.router.navigate(['/dashboard']);
+    }
+  }
+
   onSubmit(): void {
     if (this.loginForm.valid) {
       this.loading = true;
       this.error = '';
+      this.sessionExpired = false;
 
       this.authService.login(this.loginForm.value).subscribe({
         next: () => {
-          this.router.navigate(['/dashboard']);
+          const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
+          // Solo rutas internas, para no redirigir a sitios externos
+          const target = returnUrl?.startsWith('/') && !returnUrl.startsWith('//') ? returnUrl : '/dashboard';
+          this.router.navigateByUrl(target);
         },
         error: (err) => {
           this.error = err.error?.message || 'Error al iniciar sesión';

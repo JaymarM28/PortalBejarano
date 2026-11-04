@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsOptional, IsString, IsNumber, Min } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, IsNumber, Min, IsEmail } from 'class-validator';
 
 export class CreateEmployeeDto {
   @IsNotEmpty()
@@ -12,6 +12,10 @@ export class CreateEmployeeDto {
   @IsOptional()
   @IsString()
   phone?: string;
+
+  @IsOptional()
+  @IsEmail({}, { message: 'El email del trabajador no es válido' })
+  email?: string | null;
 
   @IsOptional()
   @IsString()
@@ -39,6 +43,10 @@ export class UpdateEmployeeDto {
   @IsOptional()
   @IsString()
   phone?: string;
+
+  @IsOptional()
+  @IsEmail({}, { message: 'El email del trabajador no es válido' })
+  email?: string | null;
 
   @IsOptional()
   @IsString()

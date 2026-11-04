@@ -7,7 +7,7 @@ import { CommonModule } from '@angular/common';
   imports: [CommonModule],
   template: `
     <div class="skeleton-wrapper" *ngIf="loading">
-      <!-- Skeleton para cards de empleadas -->
+      <!-- Skeleton para cards de trabajadores -->
       <div *ngIf="type === 'employee-card'" class="skeleton-grid">
         <div *ngFor="let item of [1,2,3,4,5,6]" class="skeleton-card">
           <div class="skeleton-line skeleton-title"></div>

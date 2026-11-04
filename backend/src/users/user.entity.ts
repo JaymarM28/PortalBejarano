@@ -16,7 +16,9 @@ export class User {
   @Column({ unique: true })
   email: string;
 
-  @Column()
+  // select: false -> nunca se incluye en consultas ni relaciones (p. ej. pago.employer)
+  // salvo que se pida explícitamente con addSelect('user.password').
+  @Column({ select: false })
   password: string;
 
   @Column()

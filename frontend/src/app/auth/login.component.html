@@ -36,6 +36,10 @@
         </div>
       </div>
 
+      <div class="info-alert" *ngIf="sessionExpired && !error">
+        Tu sesión expiró. Inicia sesión de nuevo para continuar.
+      </div>
+
       <div class="error-alert" *ngIf="error">
         {{ error }}
       </div>

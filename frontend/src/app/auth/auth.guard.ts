@@ -21,7 +21,11 @@ export class AuthGuard implements CanActivate {
       return true;
     }
 
-    this.router.navigate(['/login'], { queryParams: { returnUrl: state.url } });
+    const queryParams: Record<string, string | number> = { returnUrl: state.url };
+    if (this.authService.consumeExpiredOnLoad()) {
+      queryParams['expired'] = 1;
+    }
+    this.router.navigate(['/login'], { queryParams });
     return false;
   }
 }

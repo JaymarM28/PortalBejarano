@@ -33,7 +33,7 @@ export class EmployeesService {
 
     const employee = await this.employeeRepository.findOne({ where });
     if (!employee) {
-      throw new NotFoundException('Empleada no encontrada');
+      throw new NotFoundException('Trabajador no encontrado');
     }
     return employee;
   }

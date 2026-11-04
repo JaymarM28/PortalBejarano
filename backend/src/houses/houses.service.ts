@@ -129,7 +129,7 @@ export class HousesService {
 
     if (hasData) {
       throw new ConflictException(
-        'No puede eliminar esta casa. Primero elimine los usuaarios, empleados, pagos y gastos relacionados'
+        'No puede eliminar esta casa. Primero elimine los usuarios, trabajadores, pagos y gastos relacionados'
       );
     }
 

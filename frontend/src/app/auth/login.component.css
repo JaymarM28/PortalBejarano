@@ -85,6 +85,16 @@
   border-left: 4px solid #e74c3c;
 }
 
+.info-alert {
+  background: #fff8e6;
+  color: #92400e;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  border-left: 4px solid #f59e0b;
+  margin-bottom: 12px;
+}
+
 .btn-primary {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
