@@ -8,12 +8,14 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt.strategy';
 import { User } from '../users/user.entity';
+import { LoginThrottlerModule } from './login-throttle';
 
 @Module({
   imports: [
     ConfigModule, // 👈 importante
     TypeOrmModule.forFeature([User]),
     PassportModule,
+    LoginThrottlerModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

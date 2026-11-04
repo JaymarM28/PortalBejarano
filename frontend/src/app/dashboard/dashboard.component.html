@@ -27,7 +27,7 @@
         [class.active]="activeTab === 'employees'" 
         (click)="setActiveTab('employees')">
         <mat-icon class="nav-icon">person</mat-icon>
-        <span class="nav-text">Empleadas</span>
+        <span class="nav-text">Trabajadores</span>
       </a>
       
       <a 
@@ -130,16 +130,16 @@
               <input 
                 type="text" 
                 [(ngModel)]="searchTerm" 
-                placeholder="Buscar por empleada o empleador..."
+                placeholder="Buscar por trabajador o empleador..."
                 class="filter-input with-icon">
             </div>
           </div>
           
           <div class="filter-row">
             <div class="filter-group">
-              <label>Empleada:</label>
+              <label>Trabajador:</label>
               <select [(ngModel)]="filterEmployee" class="filter-select">
-                <option value="">Todas las empleadas</option>
+                <option value="">Todos los trabajadores</option>
                 <option *ngFor="let emp of employees" [value]="emp.id">{{ emp.fullName }}</option>
               </select>
             </div>
@@ -169,7 +169,7 @@
             <thead>
               <tr>
                 <th>Fecha</th>
-                <th>Empleada</th>
+                <th>Trabajador</th>
                 <th>Empleador</th>
                 <th>Monto Total</th>
                 <th>Estado</th>
@@ -179,7 +179,7 @@
             <tbody>
               <tr *ngFor="let payment of filteredPayments">
                 <td data-label="Fecha">{{ payment.paymentDate | date: 'dd/MM/yyyy' }}</td>
-                <td data-label="Empleada">{{ payment.employee.fullName }}</td>
+                <td data-label="Trabajador">{{ payment.employee.fullName }}</td>
                 <td data-label="Empleador">{{ payment.employer.fullName }}</td>
                 <td data-label="Monto">${{ payment.totalAmount | number: '1.2-2' }}</td>
                 <td data-label="Estado">
@@ -227,10 +227,10 @@
       <!-- Employees Tab -->
       <div *ngIf="activeTab === 'employees'" class="tab-content">
         <div class="tab-header">
-          <h2>Empleadas</h2>
+          <h2>Trabajadores</h2>
           <button class="btn-primary" (click)="openEmployeeModal()">
             <mat-icon class="btn-icon-only">add</mat-icon>
-            <span class="btn-text">Nueva Empleada</span>
+            <span class="btn-text">Nuevo Trabajador</span>
           </button>
         </div>
 
@@ -241,15 +241,16 @@
             <div class="card-header">
               <h3>{{ employee.fullName }}</h3>
               <span class="badge" [class.inactive]="!employee.isActive">
-                {{ employee.isActive ? 'Activa' : 'Inactiva' }}
+                {{ employee.isActive ? 'Activo' : 'Inactivo' }}
               </span>
             </div>
             <div class="card-body">
               <p><strong>Documento:</strong> {{ employee.documentId }}</p>
               <p *ngIf="employee.phone"><strong>Teléfono:</strong> {{ employee.phone }}</p>
+              <p *ngIf="employee.email"><strong>Email:</strong> {{ employee.email }}</p>
               <p><strong>Salario:</strong> ${{ employee.baseSalary | number: '1.2-2' }}</p>
             </div>
-            <div class="card-actions">
+            <div class="card-actions" *ngIf="authService.canManageUsers()">
               <button class="btn-sm" (click)="openEmployeeModal(employee)">
                 <mat-icon>edit</mat-icon> Editar
               </button>
@@ -262,7 +263,7 @@
 
         <div class="empty-state" *ngIf="!loadingEmployees && employees.length === 0">
           <mat-icon class="empty-icon">person</mat-icon>
-          <p>No hay empleadas registradas todavía</p>
+          <p>No hay trabajadores registrados todavía</p>
         </div>
       </div>
 
@@ -741,7 +742,7 @@
             <div class="kpi neutral">
               <div class="kpi-icon"><mat-icon>people</mat-icon></div>
               <div class="kpi-info">
-                <span class="kpi-label">Balance / persona</span>
+                <span class="kpi-label">Me queda (tras mi parte)</span>
                 <span class="kpi-value">${{ reportData.summary.balancePerPerson | number:'1.0-0' }}</span>
               </div>
             </div>
@@ -763,7 +764,7 @@
               <h4 class="panel-title">Detalle de egresos</h4>
               <div class="detail-section">
                 <div class="detail-header">
-                  <span>Pagos a empleadas</span>
+                  <span>Pagos a trabajadores</span>
                   <span class="badge-amount danger-text">${{ reportData.egress.payments.total | number:'1.0-0' }}</span>
                 </div>
                 <div *ngFor="let ep of reportData.egress.payments.byEmployee" class="detail-line">
@@ -859,7 +860,7 @@
 <div class="modal" *ngIf="showEmployeeModal" (click)="showEmployeeModal = false">
   <div class="modal-content" (click)="$event.stopPropagation()">
     <div class="modal-header">
-      <h3>{{ editingEmployee ? 'Editar' : 'Nueva' }} Empleada</h3>
+      <h3>{{ editingEmployee ? 'Editar' : 'Nuevo' }} Trabajador</h3>
       <button class="btn-close" (click)="showEmployeeModal = false">
         <mat-icon>close</mat-icon>
       </button>
@@ -878,13 +879,19 @@
         <input type="tel" formControlName="phone" class="form-control">
       </div>
       <div class="form-group">
+        <label>Email</label>
+        <input type="email" formControlName="email" class="form-control" placeholder="Opcional">
+        <small class="form-hint">Si lo registras, recibirá el comprobante en PDF cuando se firme cada pago</small>
+        <small class="form-hint" style="color:#dc2626" *ngIf="employeeForm.get('email')?.invalid && employeeForm.get('email')?.touched">Email no válido</small>
+      </div>
+      <div class="form-group">
         <label>Salario Base *</label>
         <input type="number" formControlName="baseSalary" class="form-control" min="0" step="0.01">
       </div>
       <div class="form-group">
         <label>
           <input type="checkbox" formControlName="isActive">
-          Activa
+          Activo
         </label>
       </div>
       <div class="modal-actions">
@@ -912,9 +919,9 @@
         <input type="date" formControlName="paymentDate" class="form-control">
       </div>
       <div class="form-group">
-        <label>Empleada *</label>
+        <label>Trabajador *</label>
         <select formControlName="employeeId" class="form-control" (change)="onEmployeeChange($any($event.target).value)">
-          <option value="">Seleccionar empleada</option>
+          <option value="">Seleccionar trabajador</option>
           <option *ngFor="let emp of employees" [value]="emp.id">{{ emp.fullName }}</option>
         </select>
       </div>
@@ -926,9 +933,9 @@
         </select>
       </div>
       <div class="form-group">
-        <label>Salario Base (de la empleada)</label>
+        <label>Salario Base (del trabajador)</label>
         <input type="number" formControlName="baseSalary" class="form-control readonly-input" min="0" step="0.01" readonly>
-        <small class="form-hint">Este valor se trae automáticamente del perfil de la empleada</small>
+        <small class="form-hint">Este valor se trae automáticamente del perfil del trabajador</small>
       </div>
       <div class="form-group">
         <label>Bonificaciones</label>

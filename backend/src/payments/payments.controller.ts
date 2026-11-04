@@ -1,3 +1,4 @@
+import { resolveHouseScope } from '../common/house-scope';
 import { 
   Controller, 
   Get, 
@@ -29,34 +30,34 @@ export class PaymentsController {
 
   @Post()
   create(@Body() createPaymentDto: CreatePaymentDto, @Request() req) {
-    return this.paymentsService.create(createPaymentDto, req.user.userId, req.user.houseId);
+    return this.paymentsService.create(createPaymentDto, req.user.userId, resolveHouseScope(req.user));
   }
 
   @Get()
   findAll(@Request() req) {
-    return this.paymentsService.findAll(req.user.houseId);
+    return this.paymentsService.findAll(resolveHouseScope(req.user));
   }
 
   @Get(':id')
   findOne(@Param('id') id: string, @Request() req) {
-    return this.paymentsService.findOne(id, req.user.houseId);
+    return this.paymentsService.findOne(id, resolveHouseScope(req.user));
   }
 
   @Patch(':id')
   @UseGuards(AdminOrSuperAdminGuard)
   update(@Param('id') id: string, @Body() updatePaymentDto: UpdatePaymentDto, @Request() req) {
-    return this.paymentsService.update(id, updatePaymentDto, req.user.houseId);
+    return this.paymentsService.update(id, updatePaymentDto, resolveHouseScope(req.user));
   }
 
   @Delete(':id')
   @UseGuards(AdminOrSuperAdminGuard)
   remove(@Param('id') id: string, @Request() req) {
-    return this.paymentsService.remove(id, req.user.houseId);
+    return this.paymentsService.remove(id, resolveHouseScope(req.user));
   }
 
   @Post(':id/sign')
   signPayment(@Param('id') id: string, @Body() signPaymentDto: SignPaymentDto, @Request() req) {
-    return this.paymentsService.signPayment(id, signPaymentDto, req.user.houseId);
+    return this.paymentsService.signPayment(id, signPaymentDto, resolveHouseScope(req.user));
   }
 
   @Post(':id/upload-signed')
@@ -79,12 +80,12 @@ export class PaymentsController {
     if (!file) {
       throw new BadRequestException('No se ha subido ningún archivo');
     }
-    return this.paymentsService.uploadSignedDocument(id, file.filename, req.user.houseId);
+    return this.paymentsService.uploadSignedDocument(id, file.filename, resolveHouseScope(req.user));
   }
 
   @Get(':id/pdf')
   async generatePDF(@Param('id') id: string, @Res() res: Response, @Request() req) {
-    const pdfBuffer = await this.paymentsService.generatePDF(id, req.user.houseId);
+    const pdfBuffer = await this.paymentsService.generatePDF(id, resolveHouseScope(req.user));
     
     res.set({
       'Content-Type': 'application/pdf',

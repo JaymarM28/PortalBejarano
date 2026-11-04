@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, NotFoundException, InternalServerErrorException, Logger, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Payment, PaymentStatus } from './payment.entity';
@@ -6,10 +6,12 @@ import { CreatePaymentDto, SignPaymentDto, UpdatePaymentDto } from './dto/paymen
 import { Employee } from '../employees/employee.entity';
 import PDFDocument from 'pdfkit';
 import { EmailService } from '../email/email.service';
-import { UsersService } from 'src/users/users.service';
+import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class PaymentsService {
+  private readonly logger = new Logger(PaymentsService.name);
+
   constructor(
     @InjectRepository(Payment)
     private paymentRepository: Repository<Payment>,
@@ -25,7 +27,7 @@ export class PaymentsService {
     });
 
     if (!employee) {
-      throw new NotFoundException('Empleada no encontrada');
+      throw new NotFoundException('Trabajador no encontrado');
     }
 
     const baseSalary = createPaymentDto.baseSalary ?? employee.baseSalary ?? 0;
@@ -53,9 +55,7 @@ export class PaymentsService {
         throw new InternalServerErrorException('Error al cargar el pago guardado');
       }
 
-      const allUsers = await this.usersService.findAll(houseId);
-      await this.emailService.sendPaymentNotificationAsync(paymentWithRelations, allUsers);
-
+      // La notificación por correo se envía al firmar el pago (ver signPayment)
       return paymentWithRelations;
     } catch (error) {
       console.error('Error en create payment:', error);
@@ -90,7 +90,17 @@ export class PaymentsService {
 
   async update(id: string, updatePaymentDto: UpdatePaymentDto, houseId?: string): Promise<Payment> {
     const payment = await this.findOne(id, houseId);
-    
+
+    // Evita reasignar el pago a un trabajador de otra casa
+    if (updatePaymentDto.employeeId && updatePaymentDto.employeeId !== payment.employeeId) {
+      const employee = await this.employeeRepository.findOne({
+        where: { id: updatePaymentDto.employeeId, houseId: payment.houseId },
+      });
+      if (!employee) {
+        throw new NotFoundException('Trabajador no encontrado');
+      }
+    }
+
     if (updatePaymentDto.bonuses !== undefined || updatePaymentDto.deductions !== undefined) {
       const bonuses = updatePaymentDto.bonuses ?? payment.bonuses ?? 0;
       const deductions = updatePaymentDto.deductions ?? payment.deductions ?? 0;
@@ -108,16 +118,47 @@ export class PaymentsService {
 
   async signPayment(id: string, signPaymentDto: SignPaymentDto, houseId?: string): Promise<Payment> {
     const payment = await this.findOne(id, houseId);
+    this.assertPending(payment);
     
     payment.digitalSignature = signPaymentDto.digitalSignature;
     payment.status = PaymentStatus.SIGNED;
     payment.signedAt = new Date();
 
-    return this.paymentRepository.save(payment);
+    const saved = await this.paymentRepository.save(payment);
+    this.notifySigned(saved);
+    return saved;
+  }
+
+  /** Una firma ya registrada no se puede sobrescribir (evita alterar comprobantes firmados). */
+  private assertPending(payment: Payment): void {
+    if (payment.status !== PaymentStatus.PENDING) {
+      throw new ConflictException('Este pago ya fue firmado y no se puede volver a firmar');
+    }
+  }
+
+  /**
+   * Envía el comprobante firmado (PDF adjunto) a los usuarios de la casa y, si tiene
+   * email registrado, al trabajador. Corre en segundo plano: un fallo en el correo
+   * no revierte ni bloquea la firma.
+   */
+  private notifySigned(payment: Payment): void {
+    setImmediate(async () => {
+      try {
+        const [pdf, houseUsers] = await Promise.all([
+          this.buildPdf(payment),
+          payment.houseId ? this.usersService.findAll(payment.houseId) : Promise.resolve([]),
+        ]);
+        const activeUsers = houseUsers.filter(u => u.isActive);
+        await this.emailService.sendPaymentSignedNotification(payment, activeUsers, pdf);
+      } catch (error) {
+        this.logger.error(`Error enviando comprobante firmado del pago ${payment.id}`, error?.stack);
+      }
+    });
   }
 
   async uploadSignedDocument(id: string, filename: string, houseId?: string): Promise<Payment> {
     const payment = await this.findOne(id, houseId);
+    this.assertPending(payment);
     
     payment.signedDocumentUrl = filename;
     payment.status = PaymentStatus.COMPLETED;
@@ -128,7 +169,11 @@ export class PaymentsService {
 
   async generatePDF(id: string, houseId?: string): Promise<Buffer> {
     const payment = await this.findOne(id, houseId);
+    return this.buildPdf(payment);
+  }
 
+  /** Genera el PDF del comprobante. Requiere las relaciones `employee` y `employer`. */
+  buildPdf(payment: Payment): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       const doc = new PDFDocument({ margin: 50 });
       const chunks: Buffer[] = [];

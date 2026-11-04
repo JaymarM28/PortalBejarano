@@ -16,6 +16,10 @@ export class Employee {
   @Column({ nullable: true })
   phone: string;
 
+  // Opcional: si existe, el trabajador recibe el comprobante firmado por correo
+  @Column({ type: 'varchar', nullable: true })
+  email: string | null;
+
   @Column({ nullable: true })
   address: string;
 

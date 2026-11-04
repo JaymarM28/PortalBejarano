@@ -7,6 +7,7 @@ export interface CreateEmployeeDto {
   fullName: string;
   documentId: string;
   phone?: string;
+  email?: string | null;
   address?: string;
   position?: string;
   baseSalary?: number;

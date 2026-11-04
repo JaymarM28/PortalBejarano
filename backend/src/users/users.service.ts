@@ -3,7 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User, UserRole } from './user.entity';
 import * as bcrypt from 'bcrypt';
-import { IsEmail, IsNotEmpty, MinLength, IsOptional, IsBoolean } from 'class-validator';
+import { IsEmail, IsNotEmpty, MinLength, IsOptional, IsBoolean, IsString } from 'class-validator';
+import { AuthUser, resolveHouseScope } from '../common/house-scope';
 
 export class CreateUserDto {
   @IsEmail()
@@ -39,6 +40,16 @@ export class UpdateUserDto {
 
   @IsOptional()
   houseId?: string;
+}
+
+export class ChangePasswordDto {
+  @IsString()
+  @IsNotEmpty()
+  currentPassword: string;
+
+  @IsString()
+  @MinLength(6)
+  newPassword: string;
 }
 
 @Injectable()
@@ -94,10 +105,39 @@ export class UsersService {
     return result as User;
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
+  async findOneForRequester(id: string, requester: AuthUser): Promise<User> {
+    const user = await this.loadAccessibleUser(id, requester);
+    const { password, ...result } = user;
+    return result as User;
+  }
+
+  /**
+   * Carga un usuario verificando que quien hace la petición tenga acceso:
+   * - Super admin: cualquier usuario.
+   * - Resto: solo usuarios de su misma casa y nunca un super admin.
+   * Se responde 404 (no 403) para no revelar la existencia de usuarios de otras casas.
+   */
+  private async loadAccessibleUser(id: string, requester: AuthUser): Promise<User> {
     const user = await this.userRepository.findOne({ where: { id } });
     if (!user) {
       throw new NotFoundException('Usuario no encontrado');
+    }
+    if (requester.role === UserRole.SUPER_ADMIN) {
+      return user;
+    }
+    const houseId = resolveHouseScope(requester);
+    if (user.houseId !== houseId || user.role === UserRole.SUPER_ADMIN) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+    return user;
+  }
+
+  async update(id: string, updateUserDto: UpdateUserDto, requester: AuthUser): Promise<User> {
+    const user = await this.loadAccessibleUser(id, requester);
+
+    // Solo el super admin puede mover usuarios entre casas
+    if (requester.role !== UserRole.SUPER_ADMIN) {
+      delete updateUserDto.houseId;
     }
 
     if (updateUserDto.password) {
@@ -113,21 +153,22 @@ export class UsersService {
     return result as User;
   }
 
-  async remove(id: string, currentUserId: string): Promise<void> {
-    if (id === currentUserId) {
+  async remove(id: string, requester: AuthUser): Promise<void> {
+    if (id === requester.userId) {
       throw new ForbiddenException('No puedes eliminar tu propia cuenta');
     }
 
-    const user = await this.userRepository.findOne({ where: { id } });
-    if (!user) {
-      throw new NotFoundException('Usuario no encontrado');
-    }
+    const user = await this.loadAccessibleUser(id, requester);
 
     await this.userRepository.remove(user);
   }
 
   async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<{ message: string }> {
-    const user = await this.userRepository.findOne({ where: { id: userId } });
+    const user = await this.userRepository
+      .createQueryBuilder('user')
+      .addSelect('user.password')
+      .where('user.id = :id', { id: userId })
+      .getOne();
     
     if (!user) {
       throw new NotFoundException('Usuario no encontrado');

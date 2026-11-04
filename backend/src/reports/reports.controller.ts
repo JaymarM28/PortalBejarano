@@ -1,4 +1,5 @@
 import { Controller, Get, Query, UseGuards, Request } from '@nestjs/common';
+import { resolveHouseScope } from '../common/house-scope';
 import { ReportsService } from './reports.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -15,7 +16,7 @@ export class ReportsController {
   ) {
     return this.reportsService.getSummary(
       req.user.userId,
-      req.user.houseId,
+      resolveHouseScope(req.user),
       Number(year) || new Date().getFullYear(),
       month ? Number(month) : undefined,
     );
@@ -25,7 +26,7 @@ export class ReportsController {
   getAnnualSummary(@Query('year') year: number, @Request() req) {
     return this.reportsService.getAnnualSummary(
       req.user.userId,
-      req.user.houseId,
+      resolveHouseScope(req.user),
       Number(year) || new Date().getFullYear(),
     );
   }

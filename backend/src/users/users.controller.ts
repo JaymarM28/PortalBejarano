@@ -1,55 +1,54 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request } from '@nestjs/common';
-import { UsersService, CreateUserDto, UpdateUserDto } from './users.service';
+import { UsersService, CreateUserDto, UpdateUserDto, ChangePasswordDto } from './users.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminOrSuperAdminGuard } from '../auth/super-admin.guard';
 import { UserRole } from './user.entity';
+import { resolveHouseScope } from '../common/house-scope';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-@Post()
-@UseGuards(AdminOrSuperAdminGuard)
-create(@Body() createUserDto: CreateUserDto, @Request() req) {
-  const houseId =
-    req.user.role === UserRole.SUPER_ADMIN
-      ? createUserDto.houseId
-      : req.user.houseId;
+  @Post()
+  @UseGuards(AdminOrSuperAdminGuard)
+  create(@Body() createUserDto: CreateUserDto, @Request() req) {
+    const houseId =
+      req.user.role === UserRole.SUPER_ADMIN
+        ? createUserDto.houseId
+        : resolveHouseScope(req.user);
 
-  return this.usersService.create(createUserDto, houseId);
-}
+    return this.usersService.create(createUserDto, houseId);
+  }
 
+  @Get()
+  findAll(@Request() req) {
+    const houseId =
+      req.user.role === UserRole.SUPER_ADMIN ? undefined : resolveHouseScope(req.user);
 
-@Get()
-findAll(@Request() req) {
-  const houseId =
-    req.user.role === UserRole.SUPER_ADMIN
-      ? null
-      : req.user.houseId;
+    return this.usersService.findAll(houseId);
+  }
 
-  return this.usersService.findAll(houseId);
-}
+  // Debe declararse antes de ':id'
+  @Patch('me/password')
+  changeOwnPassword(@Body() body: ChangePasswordDto, @Request() req) {
+    return this.usersService.changePassword(req.user.userId, body.currentPassword, body.newPassword);
+  }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.usersService.findOne(id);
+  findOne(@Param('id') id: string, @Request() req) {
+    return this.usersService.findOneForRequester(id, req.user);
   }
 
   @Patch(':id')
   @UseGuards(AdminOrSuperAdminGuard)
-  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.usersService.update(id, updateUserDto);
+  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto, @Request() req) {
+    return this.usersService.update(id, updateUserDto, req.user);
   }
 
   @Delete(':id')
   @UseGuards(AdminOrSuperAdminGuard)
   remove(@Param('id') id: string, @Request() req) {
-    return this.usersService.remove(id, req.user.userId);
-  }
-
-  @Patch('me/password')
-  changeOwnPassword(@Body() body: { currentPassword: string; newPassword: string }, @Request() req) {
-    return this.usersService.changePassword(req.user.userId, body.currentPassword, body.newPassword);
+    return this.usersService.remove(id, req.user);
   }
 }

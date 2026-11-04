@@ -223,6 +223,7 @@ export class DashboardComponent implements OnInit {
       fullName: ['', Validators.required],
       documentId: ['', Validators.required],
       phone: [''],
+      email: ['', Validators.email],
       address: [''],
       position: [''],
       baseSalary: [''],
@@ -350,7 +351,7 @@ export class DashboardComponent implements OnInit {
     import('xlsx').then(XLSX => {
       const dataToExport = this.filteredPayments.map(payment => ({
         'Fecha': new Date(payment.paymentDate).toLocaleDateString('es-CO'),
-        'Empleada': payment.employee.fullName,
+        'Trabajador': payment.employee.fullName,
         'Empleador': payment.employer.fullName,
         'Salario Base': payment.baseSalary,
         'Bonificaciones': payment.bonuses || 0,
@@ -531,7 +532,7 @@ export class DashboardComponent implements OnInit {
         this.loadingEmployees = false;
       },
       error: (err) => {
-        this.notificationService.error('Error al cargar empleadas');
+        this.notificationService.error('Error al cargar trabajadores');
         this.loadingEmployees = false;
       }
     });
@@ -563,6 +564,10 @@ openEmployeeModal(employee?: Employee): void {
       };
       
       if (formData.phone?.trim()) data.phone = formData.phone.trim();
+      // Email opcional: al editar se envía null para poder borrarlo
+      const email = formData.email?.trim();
+      if (email) data.email = email;
+      else if (this.editingEmployee) data.email = null;
       if (formData.address?.trim()) data.address = formData.address.trim();
       if (formData.position?.trim()) data.position = formData.position.trim();
       if (formData.baseSalary !== null && formData.baseSalary !== '' && formData.baseSalary !== undefined) {
@@ -579,12 +584,12 @@ openEmployeeModal(employee?: Employee): void {
           this.loadEmployees();
           this.loading = false;
           this.notificationService.success(
-            this.editingEmployee ? 'Empleada actualizada exitosamente' : 'Empleada creada exitosamente'
+            this.editingEmployee ? 'Trabajador actualizado exitosamente' : 'Trabajador creado exitosamente'
           );
         },
         error: (err) => {
           this.notificationService.error(
-            'Error al guardar empleada: ' + (err.error?.message || 'Error desconocido')
+            'Error al guardar trabajador: ' + (err.error?.message || 'Error desconocido')
           );
           this.loading = false;
         }
@@ -593,14 +598,14 @@ openEmployeeModal(employee?: Employee): void {
   }
 
   deleteEmployee(id: string): void {
-    if (confirm('¿Estás seguro de eliminar esta empleada?')) {
+    if (confirm('¿Estás seguro de eliminar este trabajador?')) {
       this.employeesService.delete(id).subscribe({
         next: () => {
           this.loadEmployees();
-          this.notificationService.success('Empleada eliminada exitosamente');
+          this.notificationService.success('Trabajador eliminado exitosamente');
         },
         error: () => {
-          this.notificationService.error('Error al eliminar empleada');
+          this.notificationService.error('Error al eliminar trabajador');
         }
       });
     }
@@ -1191,7 +1196,7 @@ openEmployeeModal(employee?: Employee): void {
     const expenses = data.egress.expenses.total;
 
     this.doughnutData = {
-      labels: ['Ingresos', 'Pagos empleadas', 'Gastos mercado'],
+      labels: ['Ingresos', 'Pagos trabajadores', 'Gastos mercado'],
       datasets: [{
         data: [income, payments, expenses],
         backgroundColor: ['#11998e', '#eb3349', '#f5a623'],
@@ -1216,7 +1221,7 @@ openEmployeeModal(employee?: Employee): void {
       labels: this.MONTH_NAMES,
       datasets: [
         { label: 'Ingresos', data: months.map(m => m.totalIncome), borderColor: '#11998e', backgroundColor: 'rgba(17,153,142,0.1)', fill: true, tension: 0.4 },
-        { label: 'Pagos empleadas', data: months.map(m => m.totalPayments), borderColor: '#eb3349', backgroundColor: 'rgba(235,51,73,0.1)', fill: true, tension: 0.4 },
+        { label: 'Pagos trabajadores', data: months.map(m => m.totalPayments), borderColor: '#eb3349', backgroundColor: 'rgba(235,51,73,0.1)', fill: true, tension: 0.4 },
         { label: 'Gastos mercado', data: months.map(m => m.totalExpenses), borderColor: '#f5a623', backgroundColor: 'rgba(245,166,35,0.1)', fill: true, tension: 0.4 },
       ],
     };

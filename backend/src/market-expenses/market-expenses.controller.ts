@@ -1,3 +1,4 @@
+import { resolveHouseScope } from '../common/house-scope';
 import { 
   Controller, 
   Get, 
@@ -21,36 +22,36 @@ export class MarketExpensesController {
 
   @Post()
   create(@Body() createDto: CreateMarketExpenseDto, @Request() req) {
-    return this.marketExpensesService.create(createDto, req.user.userId, req.user.houseId);
+    return this.marketExpensesService.create(createDto, req.user.userId, resolveHouseScope(req.user));
   }
 
   @Get()
   findAll(@Request() req) {
-    return this.marketExpensesService.findAll(req.user.houseId);
+    return this.marketExpensesService.findAll(resolveHouseScope(req.user));
   }
 
   @Get('stats/month')
   getStatsByMonth(@Query('year') year: number, @Query('month') month: number, @Request() req) {
-    return this.marketExpensesService.getStatsByMonth(Number(year), Number(month), req.user.houseId);
+    return this.marketExpensesService.getStatsByMonth(Number(year), Number(month), resolveHouseScope(req.user));
   }
 
   @Get('stats/general')
   getGeneralStats(@Request() req) {
-    return this.marketExpensesService.getGeneralStats(req.user.houseId);
+    return this.marketExpensesService.getGeneralStats(resolveHouseScope(req.user));
   }
 
   @Get(':id')
   findOne(@Param('id') id: string, @Request() req) {
-    return this.marketExpensesService.findOne(id, req.user.houseId);
+    return this.marketExpensesService.findOne(id, resolveHouseScope(req.user));
   }
 
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateDto: UpdateMarketExpenseDto, @Request() req) {
-    return this.marketExpensesService.update(id, updateDto, req.user.houseId);
+    return this.marketExpensesService.update(id, updateDto, resolveHouseScope(req.user));
   }
 
   @Delete(':id')
   remove(@Param('id') id: string, @Request() req) {
-    return this.marketExpensesService.remove(id, req.user.houseId);
+    return this.marketExpensesService.remove(id, resolveHouseScope(req.user));
   }
 }
