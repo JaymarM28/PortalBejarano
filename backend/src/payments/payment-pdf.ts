@@ -228,9 +228,9 @@ function drawSignatures(doc: PDFKit.PDFDocument, payment: Payment, minTop: numbe
     top = M + 20;
   }
 
-  const colW = 220;
-  const leftX = L;
-  const rightX = R - colW;
+  // Solo firma el trabajador (el responsable ya figura en su recuadro): bloque centrado
+  const colW = 260;
+  const leftX = L + (W - colW) / 2;
   const lineY = top + 60;
 
   // Firma del trabajador
@@ -252,8 +252,6 @@ function drawSignatures(doc: PDFKit.PDFDocument, payment: Payment, minTop: numbe
     doc.font('Helvetica').fontSize(7.5).fillColor(C.subtle)
       .text(`Firmado digitalmente el ${formatDateTime(payment.signedAt)}`, leftX, lineY + 44, { width: colW, align: 'center' });
   }
-
-  signatureLine(doc, rightX, lineY, colW, payment.employer?.fullName ?? '', '', 'RESPONSABLE DEL PAGO');
 }
 
 function signatureLine(
