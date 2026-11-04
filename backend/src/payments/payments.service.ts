@@ -4,13 +4,16 @@ import { Repository } from 'typeorm';
 import { Payment, PaymentStatus } from './payment.entity';
 import { CreatePaymentDto, SignPaymentDto, UpdatePaymentDto } from './dto/payment.dto';
 import { Employee } from '../employees/employee.entity';
-import PDFDocument from 'pdfkit';
+import { ConfigService } from '@nestjs/config';
+import { renderPaymentPdf } from './payment-pdf';
+import { brandFromSender } from '../common/format';
 import { EmailService } from '../email/email.service';
 import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
+  private readonly brand: string;
 
   constructor(
     @InjectRepository(Payment)
@@ -19,7 +22,10 @@ export class PaymentsService {
     private employeeRepository: Repository<Employee>,
     private emailService: EmailService,
     private usersService: UsersService,
-  ) {}
+    configService: ConfigService,
+  ) {
+    this.brand = brandFromSender(configService.get<string>('EMAIL_FROM'));
+  }
 
   async create(createPaymentDto: CreatePaymentDto, employerId: string, houseId: string): Promise<Payment> {
     const employee = await this.employeeRepository.findOne({
@@ -174,118 +180,6 @@ export class PaymentsService {
 
   /** Genera el PDF del comprobante. Requiere las relaciones `employee` y `employer`. */
   buildPdf(payment: Payment): Promise<Buffer> {
-    return new Promise((resolve, reject) => {
-      const doc = new PDFDocument({ margin: 50 });
-      const chunks: Buffer[] = [];
-
-      doc.on('data', (chunk) => chunks.push(chunk));
-      doc.on('end', () => resolve(Buffer.concat(chunks)));
-      doc.on('error', reject);
-
-      doc.fontSize(20).text('COMPROBANTE DE PAGO', { align: 'center' });
-      doc.moveDown();
-      doc.fontSize(10).text(`Comprobante #${payment.id}`, { align: 'center' });
-      doc.moveDown(2);
-
-      doc.fontSize(14).text('RESPONSABLE:', { underline: true });
-      doc.moveDown(0.5);
-      doc.fontSize(11).text(`Nombre: ${payment.employer.fullName}`);
-      doc.text(`Email: ${payment.employer.email}`);
-      doc.moveDown(1.5);
-
-      doc.fontSize(14).text('TRABAJADOR:', { underline: true });
-      doc.moveDown(0.5);
-      doc.fontSize(11).text(`Nombre: ${payment.employee.fullName}`);
-      doc.text(`Documento: ${payment.employee.documentId}`);
-      doc.moveDown(1.5);
-
-      doc.fontSize(14).text('DETALLES DEL PAGO:', { underline: true });
-      doc.moveDown(0.5);
-      doc.fontSize(11).text(
-        `Fecha de pago: ${new Date(payment.paymentDate).toLocaleDateString('es-ES')}`
-      );
-      doc.moveDown(1);
-
-      const tableTop = doc.y;
-      const col1X = 50;
-      const col2X = 400;
-
-      doc.fontSize(11);
-      doc.text('Salario base:', col1X, tableTop);
-      doc.text(`$${Number(payment.baseSalary).toFixed(2)}`, col2X, tableTop);
-
-      if (payment.bonuses > 0) {
-        doc.text('Bonificaciones:', col1X, doc.y);
-        doc.text(`$${Number(payment.bonuses).toFixed(2)}`, col2X, doc.y - 12);
-      }
-
-      if (payment.deductions > 0) {
-        doc.text('Deducciones:', col1X, doc.y);
-        doc.text(`-$${Number(payment.deductions).toFixed(2)}`, col2X, doc.y - 12);
-      }
-
-      doc.moveDown();
-      doc.moveTo(col1X, doc.y).lineTo(550, doc.y).stroke();
-      doc.moveDown(0.5);
-
-      doc.fontSize(13).font('Helvetica-Bold');
-      doc.text('TOTAL:', col1X, doc.y);
-      doc.text(`$${Number(payment.totalAmount).toFixed(2)}`, col2X, doc.y - 15);
-      doc.font('Helvetica');
-
-      doc.moveDown(2);
-
-      if (payment.notes) {
-        doc.fontSize(11).text('Notas:', { underline: true });
-        doc.moveDown(0.5);
-        doc.fontSize(10).text(payment.notes);
-        doc.moveDown(2);
-      }
-
-      doc.moveDown(2);
-      if (payment.digitalSignature) {
-        try {
-          const base64Data = payment.digitalSignature.replace(/^data:image\/\w+;base64,/, '');
-          const imageBuffer = Buffer.from(base64Data, 'base64');
-
-          doc.fontSize(11).text('Firma:', { align: 'left' });
-          doc.moveDown(0.5);
-
-          const fitWidth = 200;
-          const fitHeight = 80;
-          const xRight = doc.page.width - doc.page.margins.right - fitWidth;
-          const y = doc.y;
-
-          doc.image(imageBuffer, xRight, y, { fit: [fitWidth, fitHeight] });
-          doc.y = y + fitHeight;
-          doc.moveDown(1);
-
-          doc.fontSize(9).text(
-            `Firmado digitalmente el: ${new Date(payment.signedAt).toLocaleDateString('es-ES')} a las ${new Date(payment.signedAt).toLocaleTimeString('es-ES')}`,
-            { align: 'left' }
-          );
-        } catch (error) {
-          console.error('Error al insertar firma:', error);
-          doc.fontSize(11).text('Firmado digitalmente', { align: 'center' });
-          doc.fontSize(9).text(
-            `Fecha de firma: ${new Date(payment.signedAt).toLocaleDateString('es-ES')}`,
-            { align: 'center' }
-          );
-        }
-      } else {
-        doc.moveDown(3);
-        doc.fontSize(11).text('_________________________', { align: 'center' });
-        doc.moveDown(0.5);
-        doc.text('Firma', { align: 'center' });
-      }
-
-      doc.moveDown(2);
-      doc.fontSize(8).text(
-        `Generado el: ${new Date().toLocaleDateString('es-ES')} a las ${new Date().toLocaleTimeString('es-ES')}`,
-        { align: 'center' }
-      );
-
-      doc.end();
-    });
+    return renderPaymentPdf(payment, { brand: this.brand });
   }
 }

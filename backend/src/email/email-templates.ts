@@ -1,5 +1,6 @@
 import { Payment } from '../payments/payment.entity';
 import { MarketExpense } from '../market-expenses/market-expense.entity';
+import { formatCurrency, formatDate, formatDateTime, shortId } from '../common/format';
 
 /**
  * Plantillas HTML de correo.
@@ -8,8 +9,6 @@ import { MarketExpense } from '../market-expenses/market-expense.entity';
  * no soportan de forma fiable flexbox, grid ni hojas de estilo externas.
  * Todo texto que venga de usuarios debe pasar por `escape()`.
  */
-
-const TIME_ZONE = process.env.APP_TIMEZONE || 'America/Bogota';
 
 const COLORS = {
   page: '#f3f4f6',
@@ -290,45 +289,4 @@ export function escape(value: unknown): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
-}
-
-/**
- * Fechas sin hora (columnas `date`, p. ej. '2026-11-01'). Se formatean en UTC: si se
- * usara la zona local, en Colombia (UTC-5) se mostraría el día anterior.
- */
-function formatDate(value: Date | string | null | undefined): string {
-  if (!value) return '';
-  const iso = typeof value === 'string' ? value.slice(0, 10) : value.toISOString().slice(0, 10);
-  const date = new Date(`${iso}T00:00:00Z`);
-  if (isNaN(date.getTime())) return '';
-  return date.toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
-}
-
-/** Fechas con hora (timestamps), mostradas en la zona horaria de la aplicación. */
-function formatDateTime(value: Date | string | null | undefined): string {
-  if (!value) return '';
-  const date = new Date(value);
-  if (isNaN(date.getTime())) return '';
-  return date.toLocaleString('es-CO', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-    timeZone: TIME_ZONE,
-  });
-}
-
-function formatCurrency(amount: number | string | null | undefined): string {
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(Number(amount || 0));
-}
-
-function shortId(id: string | undefined): string {
-  return id ? `#${id.slice(0, 8).toUpperCase()}` : '';
 }

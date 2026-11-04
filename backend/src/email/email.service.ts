@@ -5,6 +5,7 @@ import { User } from '../users/user.entity';
 import { Payment } from '../payments/payment.entity';
 import { MarketExpense } from '../market-expenses/market-expense.entity';
 import { expenseRegisteredEmail, paymentSignedEmail } from './email-templates';
+import { brandFromSender } from '../common/format';
 
 @Injectable()
 export class EmailService {
@@ -17,7 +18,7 @@ export class EmailService {
   constructor(private configService: ConfigService) {
     this.resend = new Resend(this.configService.get<string>('RESEND_API_KEY'));
     this.fromEmail = this.configService.get<string>('EMAIL_FROM') || 'Portal Bejarano <onboarding@resend.dev>';
-    this.brand = this.fromEmail.match(/^\s*"?([^"<]+?)"?\s*</)?.[1] || 'Portal Bejarano';
+    this.brand = brandFromSender(this.fromEmail);
   }
 
 // ==========================================
